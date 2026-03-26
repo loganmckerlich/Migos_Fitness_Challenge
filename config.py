@@ -9,6 +9,7 @@ from datetime import date
 CHALLENGE_START: date = date(2025, 1, 1)
 CHALLENGE_END: date   = date(2025, 3, 31)
 GOAL_KM: float        = 1000.0   # total group distance goal in kilometres
+KM_TO_MI: float       = 0.621371  # conversion factor: 1 km → miles
 
 # ── Athletes ──────────────────────────────────────────────────────────────────
 # Each entry: {"id": <strava_athlete_id>, "name": "<Display Name>"}
