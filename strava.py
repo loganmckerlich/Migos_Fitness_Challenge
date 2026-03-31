@@ -31,6 +31,10 @@ AUTH_URL        = "https://www.strava.com/oauth/token"
 _RNG = random.Random(42)
 
 
+_DUMMY_ACTIVITY_TYPES = ["Run", "Walk", "Ride"]
+_DUMMY_ACTIVITY_WEIGHTS = [0.45, 0.20, 0.35]
+
+
 def _generate_dummy_daily_distances(
     athletes: list[dict],
     start: date,
@@ -38,27 +42,28 @@ def _generate_dummy_daily_distances(
 ) -> pd.DataFrame:
     """
     Generate plausible per-athlete daily distance rows (km).
-    Returns a DataFrame with columns: date, athlete_id, athlete_name, km.
+    Returns a DataFrame with columns: date, athlete_id, athlete_name, km, activity_type.
     """
     rows = []
     total_days = (end - start).days + 1
     for athlete in athletes:
-        # Each athlete runs 3-5 times per week with distances 5-25 km
+        # ~55 % chance of activity on any given day; rest days are omitted
         for day_offset in range(total_days):
             current_date = start + timedelta(days=day_offset)
-            # ~55 % chance of a run on any given day
             if _RNG.random() < 0.55:
                 km = round(_RNG.uniform(4.0, 22.0), 2)
-            else:
-                km = 0.0
-            rows.append(
-                {
-                    "date": current_date,
-                    "athlete_id": athlete["id"],
-                    "athlete_name": athlete["name"],
-                    "km": km,
-                }
-            )
+                activity_type = _RNG.choices(
+                    _DUMMY_ACTIVITY_TYPES, weights=_DUMMY_ACTIVITY_WEIGHTS, k=1
+                )[0]
+                rows.append(
+                    {
+                        "date": current_date,
+                        "athlete_id": athlete["id"],
+                        "athlete_name": athlete["name"],
+                        "km": km,
+                        "activity_type": activity_type,
+                    }
+                )
     df = pd.DataFrame(rows)
     df["date"] = pd.to_datetime(df["date"])
     return df
@@ -130,7 +135,9 @@ def get_athlete_daily_distances(
     secrets: Optional[dict] = None,
 ) -> pd.DataFrame:
     """
-    Return a DataFrame with columns: date, athlete_id, athlete_name, km.
+    Return a DataFrame with columns: date, athlete_id, athlete_name, km, activity_type.
+
+    activity_type is one of "Run", "Walk", or "Ride".
 
     When USE_DUMMY_DATA is True, returns synthetic data.
     When USE_DUMMY_DATA is False, fetches real data from the Strava API using
@@ -159,6 +166,20 @@ def get_athlete_daily_distances(
             f"Missing Strava credentials in secrets: {exc}. See TODO.md."
         ) from exc
 
+    # Map Strava activity types → simplified categories
+    _TYPE_MAP: dict[str, str] = {
+        "Run":               "Run",
+        "VirtualRun":        "Run",
+        "TrailRun":          "Run",
+        "Walk":              "Walk",
+        "Hike":              "Walk",
+        "Ride":              "Ride",
+        "VirtualRide":       "Ride",
+        "MountainBikeRide":  "Ride",
+        "GravelRide":        "Ride",
+        "EBikeRide":         "Ride",
+    }
+
     rows: list[dict] = []
     for athlete in athletes:
         athlete_id = str(athlete["id"])
@@ -173,22 +194,24 @@ def get_athlete_daily_distances(
         raw_activities = _fetch_athlete_activities(access_token, start, end)
 
         for act in raw_activities:
-            # Only count running-type activities (edit to include rides, etc.)
-            if act.get("type") not in ("Run", "VirtualRun", "TrailRun"):
+            strava_type = act.get("type", "")
+            category = _TYPE_MAP.get(strava_type)
+            if category is None:
                 continue
             act_date = datetime.strptime(act["start_date_local"][:10], "%Y-%m-%d").date()
             km = round(act["distance"] / 1000, 2)
             rows.append(
                 {
-                    "date": pd.Timestamp(act_date),
-                    "athlete_id": athlete["id"],
-                    "athlete_name": athlete["name"],
-                    "km": km,
+                    "date":          pd.Timestamp(act_date),
+                    "athlete_id":    athlete["id"],
+                    "athlete_name":  athlete["name"],
+                    "km":            km,
+                    "activity_type": category,
                 }
             )
 
     if not rows:
-        return pd.DataFrame(columns=["date", "athlete_id", "athlete_name", "km"])
+        return pd.DataFrame(columns=["date", "athlete_id", "athlete_name", "km", "activity_type"])
 
     df = pd.DataFrame(rows)
     df["date"] = pd.to_datetime(df["date"])
