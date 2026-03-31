@@ -16,6 +16,10 @@ Run locally:
 
 from __future__ import annotations
 
+import math
+import time
+
+import requests
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -26,6 +30,9 @@ from datetime import date, timedelta
 
 import config
 import strava
+
+# Nominatim (OpenStreetMap geocoding) user-agent as required by the usage policy.
+_NOMINATIM_USER_AGENT = "MigosFitnessChallenge/1.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UNIT HELPERS
@@ -39,6 +46,74 @@ def _to_display(km_value: float, use_miles: bool) -> float:
 def _unit_label(use_miles: bool) -> str:
     """Return the abbreviated unit label for the current display preference."""
     return "mi" if use_miles else "km"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ROUTE HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Return the great-circle distance in km between two (lat, lon) points."""
+    R = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi       = math.radians(lat2 - lat1)
+    dlambda    = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+@st.cache_data(show_spinner="Building route — geocoding cities…")
+def _build_city_route(city_stops: tuple[str, ...]) -> list[dict]:
+    """Geocode each city name via Nominatim and compute cumulative route distances.
+
+    Results are cached for the lifetime of the Streamlit session so the API is
+    only called once.  The Nominatim usage policy requires ≤ 1 request/second.
+
+    Returns a list of dicts with keys: name, lat, lon, cumulative_km.
+    Cities that cannot be geocoded are silently skipped.
+    """
+    nominatim_url = "https://nominatim.openstreetmap.org/search"
+    headers       = {"User-Agent": _NOMINATIM_USER_AGENT}
+
+    route: list[dict] = []
+    cumulative        = 0.0
+    prev_lat = prev_lon = None
+
+    for i, city in enumerate(city_stops):
+        if i > 0:
+            time.sleep(1)  # Nominatim rate limit: ≤ 1 req/s
+        try:
+            resp = requests.get(
+                nominatim_url,
+                params={"q": city, "format": "json", "limit": 1},
+                headers=headers,
+                timeout=10,
+            )
+            data = resp.json()
+        except Exception as exc:
+            st.warning(f"Could not geocode '{city}': {exc} — skipping stop.")
+            data = []
+
+        if not data:
+            continue
+
+        lat = float(data[0]["lat"])
+        lon = float(data[0]["lon"])
+
+        if prev_lat is not None:
+            cumulative += _haversine(prev_lat, prev_lon, lat, lon)
+
+        route.append(
+            {
+                "name":          city,
+                "lat":           lat,
+                "lon":           lon,
+                "cumulative_km": round(cumulative, 1),
+            }
+        )
+        prev_lat, prev_lon = lat, lon
+
+    return route
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -565,7 +640,8 @@ def main() -> None:
     st.divider()
     _chart_activity_breakdown(df, use_miles)
     st.divider()
-    _chart_route_map(df, start_date, end_date, config.CITY_ROUTE, use_miles)
+    city_route = _build_city_route(tuple(config.CITY_STOPS))
+    _chart_route_map(df, start_date, end_date, city_route, use_miles)
 
 
 if __name__ == "__main__":
