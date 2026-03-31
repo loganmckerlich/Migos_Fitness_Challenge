@@ -17,7 +17,7 @@ import pandas as pd
 import requests
 
 # ── Feature flag ──────────────────────────────────────────────────────────────
-USE_DUMMY_DATA: bool = false   # ← flip to False to use the live Strava API
+USE_DUMMY_DATA: bool = False   # ← flip to False to use the live Strava API
 
 # ── Strava OAuth constants ────────────────────────────────────────────────────
 STRAVA_BASE_URL = "https://www.strava.com/api/v3"
