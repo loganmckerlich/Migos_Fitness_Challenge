@@ -3,14 +3,19 @@ sign_in_app/app.py — Strava authorisation-code helper.
 
 Usage
 -----
-1. Logan sends each athlete a personalised Strava authorisation URL.
-2. The athlete clicks the link, authorises the app on Strava, and is
+1. The Strava authorisation URL is read from st.secrets["strava"]["auth_url"]
+   and displayed as a clickable button in the app.
+2. The athlete clicks the button, authorises the app on Strava, and is
    redirected to a "broken" localhost URL in their browser address bar.
-3. The athlete opens this app, pastes the full redirect URL into the
-   input box, and is shown just the code they need to send to Logan.
+3. The athlete pastes the full redirect URL into the input box and is shown
+   just the code they need to send to Logan.
 
 Deploy for free on Streamlit Community Cloud:
     https://share.streamlit.io
+
+Secrets required (in .streamlit/secrets.toml):
+    [strava]
+    auth_url = "https://www.strava.com/oauth/authorize?client_id=..."
 """
 
 from __future__ import annotations
@@ -58,28 +63,47 @@ def _extract_code(raw_url: str) -> str | None:
     return code_list[0]
 
 
+def _get_auth_url() -> str | None:
+    """Return the Strava auth URL from secrets, or None if not configured."""
+    try:
+        return st.secrets["strava"]["auth_url"]
+    except (KeyError, FileNotFoundError):
+        return None
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # UI
 # ─────────────────────────────────────────────────────────────────────────────
 
 st.title("🏃 Migos Fitness — Strava Sign-In Helper")
 
-st.markdown(
-    """
-    ### How to use this app
+auth_url = _get_auth_url()
 
-    1. **Click the link Logan sent you** to authorise Strava access.
-    2. After you click **Authorize** on Strava your browser will try to load a
-       page that looks broken — that's totally normal.
-    3. **Copy the full URL** from your browser's address bar — it will look
-       something like:
-       ```
-       http://localhost/?state=&code=abc123xyz789&scope=read,activity:read_all
-       ```
-    4. **Paste that URL into the box below.**
-    5. Copy the code shown and **text it to Logan**. 🎉
-    """
-)
+_STEPS_COMMON = """\
+2. After you click **Authorize** on Strava your browser will try to load a
+   page that looks broken — that's totally normal.
+3. **Copy the full URL** from your browser's address bar — it will look
+   something like:
+   ```
+   http://localhost/?state=&code=abc123xyz789&scope=read,activity:read_all
+   ```
+4. **Paste that URL into the box below.**
+5. Copy the code shown and **send it to Logan**. 🎉
+"""
+
+if auth_url:
+    st.markdown(
+        "### How to use this app\n\n"
+        "1. **Click the button below** to authorise Strava access.\n"
+        + _STEPS_COMMON
+    )
+    st.link_button("🔗 Authorise on Strava", auth_url, use_container_width=True)
+else:
+    st.markdown(
+        "### How to use this app\n\n"
+        "1. **Click the link Logan sent you** to authorise Strava access.\n"
+        + _STEPS_COMMON
+    )
 
 st.divider()
 
@@ -94,7 +118,7 @@ if pasted_url:
         st.success("✅ Got it! Here is the code to send to Logan:")
         st.code(code, language=None)
         st.markdown(
-            "📱 **Copy that code and text it to Logan.** That's all you need to do!"
+            "📱 **Copy that code and send it to Logan.** That's all you need to do!"
         )
     else:
         st.error(

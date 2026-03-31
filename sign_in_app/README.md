@@ -5,12 +5,13 @@ Logan the Strava authorisation code he needs — no technical knowledge required
 
 ## What it does
 
-1. Logan sends each athlete a personalised Strava authorisation URL.
-2. The athlete clicks the link and authorises the app on Strava.
+1. The app displays a **one-click Authorize button** that takes athletes directly
+   to the Strava permission page (the link is stored securely in `secrets.toml`).
+2. The athlete clicks the button and authorises the app on Strava.
 3. Strava redirects to a "broken" `localhost` URL — the code is hidden in that
    address.
-4. The athlete opens **this app**, pastes the full redirect URL, and is shown
-   just the short code they need to text to Logan.
+4. The athlete pastes the full redirect URL into **this app** and is shown
+   just the short code they need to send to Logan.
 
 ## Deploying on Streamlit Community Cloud (free)
 
@@ -21,10 +22,17 @@ Logan the Strava authorisation code he needs — no technical knowledge required
    - **Repository**: `loganmckerlich/Migos_Fitness_Challenge`
    - **Branch**: `main`
    - **Main file path**: `sign_in_app/app.py`
-5. Click **Deploy!** — Streamlit will give you a public URL you can share with
+5. Under **Advanced settings → Secrets**, add the following (replacing the
+   placeholder with the real Strava authorisation URL):
+   ```toml
+   [strava]
+   auth_url = "https://www.strava.com/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost&response_type=code&scope=read,activity:read_all"
+   ```
+6. Click **Deploy!** — Streamlit will give you a public URL you can share with
    athletes.
 
-No secrets or environment variables are required for this app.
+If `auth_url` is not set in secrets the app falls back to asking athletes to
+use a link Logan sent them separately, so it remains functional without secrets.
 
 ## Running locally
 
@@ -32,3 +40,7 @@ No secrets or environment variables are required for this app.
 pip install streamlit
 streamlit run sign_in_app/app.py
 ```
+
+To test the Authorize button locally, create `.streamlit/secrets.toml` at the
+repo root (see `.streamlit/secrets.toml.example`) and add `auth_url` under
+`[strava]`.
