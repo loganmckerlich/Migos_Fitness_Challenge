@@ -10,8 +10,12 @@ Logan the Strava authorisation code he needs — no technical knowledge required
 2. The athlete clicks the button and authorises the app on Strava.
 3. Strava redirects to a "broken" `localhost` URL — the code is hidden in that
    address.
-4. The athlete pastes the full redirect URL into **this app** and is shown
-   just the short code they need to send to Logan.
+4. The athlete pastes the full redirect URL into **this app**.
+5. If `client_id` and `client_secret` are configured the app automatically
+   exchanges the code and shows the athlete their **Strava Athlete ID** and
+   **refresh token** to send to Logan — no extra steps needed.
+   Without those secrets the app falls back to showing the raw auth code and
+   displays step-by-step instructions for finding the Athlete ID on Strava.
 
 ## Deploying on Streamlit Community Cloud (free)
 
@@ -23,11 +27,16 @@ Logan the Strava authorisation code he needs — no technical knowledge required
    - **Branch**: `main`
    - **Main file path**: `sign_in_app/app.py`
 5. Under **Advanced settings → Secrets**, add the following (replacing the
-   placeholder with the real Strava authorisation URL):
+   placeholders with real values):
    ```toml
    [strava]
-   auth_url = "https://www.strava.com/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost&response_type=code&scope=read,activity:read_all"
+   auth_url      = "https://www.strava.com/oauth/authorize?client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost&response_type=code&scope=read,activity:read_all"
+   client_id     = "YOUR_STRAVA_CLIENT_ID"
+   client_secret = "YOUR_STRAVA_CLIENT_SECRET"
    ```
+   `client_id` and `client_secret` are optional but strongly recommended —
+   they allow the app to automatically retrieve and display the athlete's
+   Strava Athlete ID and refresh token without any extra steps.
 6. Click **Deploy!** — Streamlit will give you a public URL you can share with
    athletes.
 
@@ -37,10 +46,10 @@ use a link Logan sent them separately, so it remains functional without secrets.
 ## Running locally
 
 ```bash
-pip install streamlit
+pip install -r sign_in_app/requirements.txt
 streamlit run sign_in_app/app.py
 ```
 
 To test the Authorize button locally, create `.streamlit/secrets.toml` at the
-repo root (see `.streamlit/secrets.toml.example`) and add `auth_url` under
-`[strava]`.
+repo root (see `.streamlit/secrets.toml.example`) and add `auth_url`,
+`client_id`, and `client_secret` under `[strava]`.
