@@ -16,10 +16,10 @@ KM_TO_MI: float       = 0.621371  # conversion factor: 1 km → miles
 # Replace the IDs with real Strava athlete IDs when USE_DUMMY_DATA is False.
 ATHLETES: list[dict] = [
     {"id": 56163722, "name": "Logan McKerlich"},
-    {"id": 222222, "name": "Jamie Nguyen"},
-    {"id": 333333, "name": "Sam Torres"},
-    {"id": 444444, "name": "Alex Rivera"},
-    {"id": 555555, "name": "Casey Kim"},
+#    {"id": 222222, "name": "Jamie Nguyen"},
+#    {"id": 333333, "name": "Sam Torres"},
+#    {"id": 444444, "name": "Alex Rivera"},
+#    {"id": 555555, "name": "Casey Kim"},
 ]
 
 # ── European city route ───────────────────────────────────────────────────────
