@@ -126,17 +126,27 @@ st.title("🏃 Migos Fitness — Strava Sign-In Helper")
 
 auth_url = _get_auth_url()
 
-_STEPS_COMMON = """\
-2. After you click **Authorize** on Strava your browser will try to load a
-   page that looks broken — that's totally normal.
-3. **Copy the full URL** from your browser's address bar — it will look
-   something like:
-   ```
-   http://localhost/?state=&code=abc123xyz789&scope=read,activity:read_all
-   ```
-4. **Paste that URL into the box below.**
-5. Copy the code shown and **send it to Logan**. 🎉
-"""
+_client_id, _client_secret = _get_strava_credentials()
+_has_credentials = bool(_client_id and _client_secret)
+
+_STEP_5 = (
+    "5. Copy the **Athlete ID** and **Refresh Token** shown below and "
+    "**send them to Logan**. 🎉"
+    if _has_credentials
+    else "5. Copy the code shown and **send it to Logan**. 🎉"
+)
+
+_STEPS_COMMON = (
+    "2. After you click **Authorize** on Strava your browser will try to load a\n"
+    "   page that looks broken — that's totally normal.\n"
+    "3. **Copy the full URL** from your browser's address bar — it will look\n"
+    "   something like:\n"
+    "   ```\n"
+    "   http://localhost/?state=&code=abc123xyz789&scope=read,activity:read_all\n"
+    "   ```\n"
+    "4. **Paste that URL into the box below.**\n"
+    + _STEP_5 + "\n"
+)
 
 if auth_url:
     st.markdown(
