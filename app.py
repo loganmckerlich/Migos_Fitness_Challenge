@@ -7,6 +7,8 @@ Features
 2. Per-athlete cumulative distance bar/area chart + trend overlay
 3. Group progress vs trend line
 4. Virtual route map (Folium) showing progress through European cities
+5. Foot mile progress tracker (walking + running vs 1 mi/day pace)
+6. Activity type pie chart breakdown
 
 Run locally:
     streamlit run app.py
@@ -18,6 +20,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import folium
+import plotly.graph_objects as go
 from streamlit_folium import st_folium
 from datetime import date, timedelta
 
@@ -92,30 +95,24 @@ def _sidebar() -> dict:
     # Always store goal internally in km
     goal_km = goal_input / config.KM_TO_MI if use_miles else goal_input
 
-    start_date = st.sidebar.date_input(
-        "Challenge start date",
-        value=config.CHALLENGE_START,
-    )
-
-    end_date = st.sidebar.date_input(
-        "Challenge end date",
-        value=config.CHALLENGE_END,
-    )
-
-    if end_date <= start_date:
-        st.sidebar.error("End date must be after start date.")
+    # Dates are hardcoded to the 2026 challenge year
+    start_date = config.CHALLENGE_START
+    end_date   = config.CHALLENGE_END
 
     st.sidebar.markdown("---")
+    st.sidebar.caption(
+        f"📅 Challenge period: {start_date} → {end_date}"
+    )
     st.sidebar.caption(
         "Data source: "
         + ("🟡 Dummy data" if strava.USE_DUMMY_DATA else "🟢 Live Strava API")
     )
 
     return {
-        "goal_km": goal_km,
+        "goal_km":    goal_km,
         "start_date": start_date,
-        "end_date": end_date,
-        "use_miles": use_miles,
+        "end_date":   end_date,
+        "use_miles":  use_miles,
     }
 
 
@@ -382,6 +379,145 @@ def _chart_route_map(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CHART 4: Foot mile progress tracker
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _chart_foot_miles(
+    df: pd.DataFrame,
+    start: date,
+    end: date,
+    athletes: list[dict],
+    use_miles: bool = True,
+) -> None:
+    """
+    Compare cumulative foot miles (walk + run) against the 1-foot-mile-per-day
+    pace target for the group.  To be on pace the group needs:
+        sum of foot miles >= number of days elapsed × number of athletes
+    """
+    st.subheader("🦶 Foot Mile Progress (Walk + Run)")
+
+    unit = _unit_label(use_miles)
+    n_athletes = len(athletes)
+
+    # Filter to foot activities only
+    foot_df = df[df["activity_type"].isin(["Run", "Walk"])].copy() if "activity_type" in df.columns else df.copy()
+
+    if foot_df.empty:
+        st.info("No walking or running data available for the selected date range.")
+        return
+
+    # Build cumulative foot-mile table (in km internally)
+    all_dates = pd.date_range(start=start, end=min(end, date.today()), freq="D")
+    pivot = foot_df.pivot_table(
+        index="date", columns="athlete_name", values="km", aggfunc="sum"
+    ).reindex(all_dates, fill_value=0)
+    pivot.index.name = "date"
+    cumulative_foot = pivot.fillna(0).cumsum()
+
+    # Group total foot miles (km)
+    group_foot_km = cumulative_foot.sum(axis=1)
+
+    # Pace: 1 foot mile per athlete per day (convert to km for internal comparison)
+    foot_mi_per_day_km = (1.0 / config.KM_TO_MI) * n_athletes
+    pace_km = pd.Series(
+        [foot_mi_per_day_km * (i + 1) for i in range(len(all_dates))],
+        index=all_dates,
+        name="Pace (1 mi/day per athlete)",
+    )
+
+    # Convert both series to display units
+    factor = config.KM_TO_MI if use_miles else 1.0
+    group_foot_display = (group_foot_km * factor).rename(f"Actual foot {unit}")
+    pace_display       = (pace_km * factor).rename(f"Pace (1 {unit}/day per athlete)")
+
+    combined = pd.concat([group_foot_display, pace_display], axis=1)
+    st.line_chart(combined, use_container_width=True)
+
+    current_foot = float(group_foot_display.iloc[-1])
+    current_pace = float(pace_display.iloc[-1])
+    delta_str    = f"{current_foot - current_pace:+.1f} {unit} vs pace"
+    status_icon  = "✅" if current_foot >= current_pace else "⚠️"
+    st.metric(
+        f"Group foot miles ({unit})",
+        f"{current_foot:.1f} {unit}",
+        f"{status_icon} {delta_str}",
+    )
+
+    # Per-athlete table
+    if not cumulative_foot.empty:
+        elapsed_days = len(all_dates)
+        target_per_athlete_km = elapsed_days / config.KM_TO_MI  # elapsed days × 1 mi = N km
+        latest_foot = cumulative_foot.iloc[-1]
+        foot_status_df = pd.DataFrame(
+            {
+                "Athlete": list(latest_foot.index),
+                f"Foot {unit}": [
+                    round(v * factor, 1) for v in latest_foot.values
+                ],
+                f"Pace target ({unit})": [
+                    round(target_per_athlete_km * factor, 1)
+                ] * len(latest_foot),
+                "Status": [
+                    "✅ On pace" if v >= target_per_athlete_km else "⚠️ Behind pace"
+                    for v in latest_foot.values
+                ],
+            }
+        )
+        st.dataframe(foot_status_df, use_container_width=True, hide_index=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CHART 5: Activity type pie chart
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _chart_activity_breakdown(
+    df: pd.DataFrame,
+    use_miles: bool = True,
+) -> None:
+    """Pie chart showing total distance broken down by activity type."""
+    st.subheader("🥧 Activity Type Breakdown")
+
+    if "activity_type" not in df.columns or df.empty:
+        st.info("No activity type data available.")
+        return
+
+    unit   = _unit_label(use_miles)
+    factor = config.KM_TO_MI if use_miles else 1.0
+
+    totals = (
+        df.groupby("activity_type")["km"]
+        .sum()
+        .mul(factor)
+        .reset_index()
+        .rename(columns={"km": unit})
+    )
+
+    if totals.empty:
+        st.info("No data to display.")
+        return
+
+    color_map = {"Run": "#EF553B", "Walk": "#00CC96", "Ride": "#636EFA"}
+    colors = [color_map.get(t, "#AB63FA") for t in totals["activity_type"]]
+
+    fig = go.Figure(
+        go.Pie(
+            labels=totals["activity_type"],
+            values=totals[unit].round(1),
+            textinfo="label+percent+value",
+            texttemplate="%{label}<br>%{percent}<br>%{value:.1f} " + unit,
+            marker_colors=colors,
+            hole=0.35,
+        )
+    )
+    fig.update_layout(
+        title=dict(text=f"Total distance by activity type ({unit})", x=0.5),
+        showlegend=True,
+        margin=dict(t=60, b=20, l=20, r=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -400,10 +536,6 @@ def main() -> None:
     start_date = cfg["start_date"]
     end_date   = cfg["end_date"]
     use_miles  = cfg["use_miles"]
-
-    if end_date <= start_date:
-        st.error("Please fix the date range in the sidebar.")
-        st.stop()
 
     unit = _unit_label(use_miles)
     goal_display = _to_display(goal_km, use_miles)
@@ -428,6 +560,10 @@ def main() -> None:
     _chart_group_progress(df, start_date, end_date, goal_km, use_miles)
     st.divider()
     _chart_per_athlete(df, start_date, end_date, goal_km, config.ATHLETES, use_miles)
+    st.divider()
+    _chart_foot_miles(df, start_date, end_date, config.ATHLETES, use_miles)
+    st.divider()
+    _chart_activity_breakdown(df, use_miles)
     st.divider()
     _chart_route_map(df, start_date, end_date, config.CITY_ROUTE, use_miles)
 

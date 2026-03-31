@@ -6,10 +6,11 @@ Edit these values to customise the challenge, or override them in the sidebar.
 from datetime import date
 
 # ── Challenge dates & goal ────────────────────────────────────────────────────
-CHALLENGE_START: date = date(2025, 1, 1)
-CHALLENGE_END: date   = date(2025, 3, 31)
-GOAL_KM: float        = 1000.0   # total group distance goal in kilometres
-KM_TO_MI: float       = 0.621371  # conversion factor: 1 km → miles
+CHALLENGE_START: date = date(2026, 1, 1)
+CHALLENGE_END: date   = date(2026, 12, 31)
+KM_TO_MI: float       = 0.621371                  # conversion factor: 1 km → miles
+GOAL_MI: float        = 7298.0                    # total group distance goal in miles
+GOAL_KM: float        = GOAL_MI / KM_TO_MI        # total group distance goal in kilometres
 
 # ── Athletes ──────────────────────────────────────────────────────────────────
 # Each entry: {"id": <strava_athlete_id>, "name": "<Display Name>"}
