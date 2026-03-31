@@ -20,34 +20,31 @@
 ## 2. Obtain Per-Athlete Refresh Tokens
 
 Because the app fetches data for *multiple athletes*, each athlete must
-individually authorise the app.  Follow these steps for every athlete in the
-challenge:
+individually authorise the app.  Use the **sign-in helper app**
+(`sign_in_app/`) to do this — it handles the token exchange automatically so
+athletes never need to run any commands.
 
-1. Direct each athlete to the following URL (replace `<CLIENT_ID>` with your
-   app's Client ID):
+### Prerequisites
 
-   ```
-   https://www.strava.com/oauth/authorize?client_id=<CLIENT_ID>&response_type=code&redirect_uri=http://localhost&approval_prompt=force&scope=activity:read_all
-   ```
+Make sure `client_id` and `client_secret` are added to the sign-in app's
+secrets on Streamlit Community Cloud (see the sign-in app's README for
+deployment instructions).  With those credentials in place the app exchanges
+the authorisation code for a refresh token on the athlete's behalf.
 
-2. After the athlete clicks **Authorize**, Strava will redirect to
-   `http://localhost?code=<AUTH_CODE>&scope=...`.
-   Copy the `code` value from the URL.
+### Per-athlete steps
 
-3. Exchange the code for a refresh token by running this curl command
-   (replace placeholders):
+1. Send each athlete the public URL of the deployed sign-in helper app.
 
-   ```bash
-   curl -X POST https://www.strava.com/oauth/token \
-     -d client_id=<CLIENT_ID> \
-     -d client_secret=<CLIENT_SECRET> \
-     -d code=<AUTH_CODE> \
-     -d grant_type=authorization_code
-   ```
+2. The athlete clicks **Authorize on Strava** inside the app, approves access,
+   and pastes the resulting redirect URL (from their browser's address bar)
+   back into the app.
 
-4. From the JSON response, copy the `refresh_token` value.
+3. The app automatically contacts Strava and displays the athlete's
+   **Strava Athlete ID** and **Refresh Token**.
 
-5. Repeat steps 1–4 for every athlete.
+4. The athlete copies both values and sends them to Logan.
+
+5. Repeat steps 2–4 for every athlete.
 
 ---
 
