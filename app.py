@@ -156,24 +156,16 @@ def _sidebar() -> dict:
     unit = st.sidebar.radio("Units", ["miles", "km"], index=0)
     use_miles = unit == "miles"
 
-    default_goal = (
-        round(config.GOAL_KM * config.KM_TO_MI) if use_miles else config.GOAL_KM
-    )
-    unit_label = _unit_label(use_miles)
-    goal_input = st.sidebar.number_input(
-        f"Goal distance ({unit_label})",
-        min_value=60.0 if use_miles else 100.0,
-        max_value=31000.0 if use_miles else 50000.0,
-        value=float(default_goal),
-        step=25.0 if use_miles else 50.0,
-    )
-    # Always store goal internally in km
-    goal_km = goal_input / config.KM_TO_MI if use_miles else goal_input
+    # Goal comes from config only — not user-controllable
+    goal_km = config.GOAL_KM
 
     # Dates are hardcoded to the 2026 challenge year
     start_date = config.CHALLENGE_START
     end_date   = config.CHALLENGE_END
 
+    unit_label   = _unit_label(use_miles)
+    goal_display = round(_to_display(goal_km, use_miles))
+    st.sidebar.caption(f"🎯 Goal: {goal_display:,} {unit_label}")
     st.sidebar.markdown("---")
     st.sidebar.caption(
         f"📅 Challenge period: {start_date} → {end_date}"
@@ -465,14 +457,12 @@ def _chart_foot_miles(
     use_miles: bool = True,
 ) -> None:
     """
-    Compare cumulative foot miles (walk + run) against the 1-foot-mile-per-day
-    pace target for the group.  To be on pace the group needs:
-        sum of foot miles >= number of days elapsed × number of athletes
+    Show cumulative foot miles (walk + run) per athlete against the
+    1-foot-mile-per-day pace target per person.
     """
     st.subheader("🦶 Foot Mile Progress (Walk + Run)")
 
     unit = _unit_label(use_miles)
-    n_athletes = len(athletes)
 
     # Filter to foot activities only
     foot_df = df[df["activity_type"].isin(["Run", "Walk"])].copy() if "activity_type" in df.columns else df.copy()
@@ -481,7 +471,7 @@ def _chart_foot_miles(
         st.info("No walking or running data available for the selected date range.")
         return
 
-    # Build cumulative foot-mile table (in km internally)
+    # Build cumulative foot-mile table (in km internally), per athlete
     all_dates = pd.date_range(start=start, end=min(end, date.today()), freq="D")
     pivot = foot_df.pivot_table(
         index="date", columns="athlete_name", values="km", aggfunc="sum"
@@ -489,56 +479,42 @@ def _chart_foot_miles(
     pivot.index.name = "date"
     cumulative_foot = pivot.fillna(0).cumsum()
 
-    # Group total foot miles (km)
-    group_foot_km = cumulative_foot.sum(axis=1)
-
-    # Pace: 1 foot mile per athlete per day (convert to km for internal comparison)
-    foot_mi_per_day_km = (1.0 / config.KM_TO_MI) * n_athletes
+    # Pace: 1 foot mile per person per day (convert to km internally)
+    foot_mi_per_day_km = 1.0 / config.KM_TO_MI
     pace_km = pd.Series(
         [foot_mi_per_day_km * (i + 1) for i in range(len(all_dates))],
         index=all_dates,
-        name="Pace (1 mi/day per athlete)",
+        name=f"Pace (1 {unit}/day)",
     )
 
-    # Convert both series to display units
+    # Convert all to display units and combine with pace line
     factor = config.KM_TO_MI if use_miles else 1.0
-    group_foot_display = (group_foot_km * factor).rename(f"Actual foot {unit}")
-    pace_display       = (pace_km * factor).rename(f"Pace (1 {unit}/day per athlete)")
+    display_cumulative = cumulative_foot * factor
+    pace_display = pace_km * factor
 
-    combined = pd.concat([group_foot_display, pace_display], axis=1)
+    combined = pd.concat([display_cumulative, pace_display], axis=1)
     st.line_chart(combined, use_container_width=True)
 
-    current_foot = float(group_foot_display.iloc[-1])
-    current_pace = float(pace_display.iloc[-1])
-    delta_str    = f"{current_foot - current_pace:+.1f} {unit} vs pace"
-    status_icon  = "✅" if current_foot >= current_pace else "⚠️"
-    st.metric(
-        f"Group foot miles ({unit})",
-        f"{current_foot:.1f} {unit}",
-        f"{status_icon} {delta_str}",
+    # Per-athlete status table
+    elapsed_days = len(all_dates)
+    target_per_athlete_km = elapsed_days / config.KM_TO_MI  # elapsed days × 1 mi = N km
+    latest_foot = cumulative_foot.iloc[-1]
+    foot_status_df = pd.DataFrame(
+        {
+            "Athlete": list(latest_foot.index),
+            f"Foot {unit}": [
+                round(v * factor, 1) for v in latest_foot.values
+            ],
+            f"Pace target ({unit})": [
+                round(target_per_athlete_km * factor, 1)
+            ] * len(latest_foot),
+            "Status": [
+                "✅ On pace" if v >= target_per_athlete_km else "⚠️ Behind pace"
+                for v in latest_foot.values
+            ],
+        }
     )
-
-    # Per-athlete table
-    if not cumulative_foot.empty:
-        elapsed_days = len(all_dates)
-        target_per_athlete_km = elapsed_days / config.KM_TO_MI  # elapsed days × 1 mi = N km
-        latest_foot = cumulative_foot.iloc[-1]
-        foot_status_df = pd.DataFrame(
-            {
-                "Athlete": list(latest_foot.index),
-                f"Foot {unit}": [
-                    round(v * factor, 1) for v in latest_foot.values
-                ],
-                f"Pace target ({unit})": [
-                    round(target_per_athlete_km * factor, 1)
-                ] * len(latest_foot),
-                "Status": [
-                    "✅ On pace" if v >= target_per_athlete_km else "⚠️ Behind pace"
-                    for v in latest_foot.values
-                ],
-            }
-        )
-        st.dataframe(foot_status_df, use_container_width=True, hide_index=True)
+    st.dataframe(foot_status_df, use_container_width=True, hide_index=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -631,17 +607,28 @@ def main() -> None:
     athletes_frozen = tuple((a["id"], a["name"]) for a in config.ATHLETES)
     df = _load_data(athletes_frozen, start_date, end_date)
 
-    # Render charts
-    _chart_group_progress(df, start_date, end_date, goal_km, use_miles)
-    st.divider()
-    _chart_per_athlete(df, start_date, end_date, goal_km, config.ATHLETES, use_miles)
-    st.divider()
-    _chart_foot_miles(df, start_date, end_date, config.ATHLETES, use_miles)
-    st.divider()
-    _chart_activity_breakdown(df, use_miles)
-    st.divider()
-    city_route = _build_city_route(tuple(config.CITY_STOPS))
-    _chart_route_map(df, start_date, end_date, city_route, use_miles)
+    # Render charts in tabs
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📈 Overall Progress",
+        "🦶 Foot Miles",
+        "🗺️ Euro Map",
+        "📊 Misc",
+    ])
+
+    with tab1:
+        _chart_group_progress(df, start_date, end_date, goal_km, use_miles)
+        st.divider()
+        _chart_per_athlete(df, start_date, end_date, goal_km, config.ATHLETES, use_miles)
+
+    with tab2:
+        _chart_foot_miles(df, start_date, end_date, config.ATHLETES, use_miles)
+
+    with tab3:
+        city_route = _build_city_route(tuple(config.CITY_STOPS))
+        _chart_route_map(df, start_date, end_date, city_route, use_miles)
+
+    with tab4:
+        _chart_activity_breakdown(df, use_miles)
 
 
 if __name__ == "__main__":
