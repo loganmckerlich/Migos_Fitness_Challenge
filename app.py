@@ -17,9 +17,7 @@ Run locally:
 from __future__ import annotations
 
 import math
-import time
 
-import requests
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -30,9 +28,6 @@ from datetime import date, timedelta
 
 import config
 import strava
-
-# Nominatim (OpenStreetMap geocoding) user-agent as required by the usage policy.
-_NOMINATIM_USER_AGENT = "MigosFitnessChallenge/1.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UNIT HELPERS
@@ -62,54 +57,30 @@ def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-@st.cache_data(show_spinner="Building route — geocoding cities…")
-def _build_city_route(city_stops: tuple[str, ...]) -> list[dict]:
-    """Geocode each city name via Nominatim and compute cumulative route distances.
+@st.cache_data(show_spinner="Building route…")
+def _build_city_route(city_stops: tuple[dict, ...]) -> list[dict]:
+    """Compute cumulative route distances from pre-geocoded city coordinates.
 
-    Results are cached for the lifetime of the Streamlit session so the API is
-    only called once.  The Nominatim usage policy requires ≤ 1 request/second.
+    Each element of *city_stops* must be a dict with keys ``name``, ``lat``,
+    and ``lon``.  Cumulative great-circle distances are computed with the
+    haversine formula.
 
     Returns a list of dicts with keys: name, lat, lon, cumulative_km.
-    Cities that cannot be geocoded are silently skipped.
     """
-    nominatim_url = "https://nominatim.openstreetmap.org/search"
-    headers       = {"User-Agent": _NOMINATIM_USER_AGENT}
-
     route: list[dict] = []
     cumulative        = 0.0
     prev_lat = prev_lon = None
 
-    for i, city in enumerate(city_stops):
-        if i > 0:
-            time.sleep(1)  # Nominatim rate limit: ≤ 1 req/s
-        try:
-            resp = requests.get(
-                nominatim_url,
-                params={"q": city, "format": "json", "limit": 1},
-                headers=headers,
-                timeout=10,
-            )
-            resp.raise_for_status()
-            if not resp.text.strip():
-                data = []
-            else:
-                data = resp.json()
-        except Exception as exc:
-            st.warning(f"Could not geocode '{city}': {exc} — skipping stop.")
-            data = []
-
-        if not data:
-            continue
-
-        lat = float(data[0]["lat"])
-        lon = float(data[0]["lon"])
+    for stop in city_stops:
+        lat = stop["lat"]
+        lon = stop["lon"]
 
         if prev_lat is not None:
             cumulative += _haversine(prev_lat, prev_lon, lat, lon)
 
         route.append(
             {
-                "name":          city,
+                "name":          stop["name"],
                 "lat":           lat,
                 "lon":           lon,
                 "cumulative_km": round(cumulative, 1),
