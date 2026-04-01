@@ -89,7 +89,11 @@ def _build_city_route(city_stops: tuple[str, ...]) -> list[dict]:
                 headers=headers,
                 timeout=10,
             )
-            data = resp.json()
+            resp.raise_for_status()
+            if not resp.text.strip():
+                data = []
+            else:
+                data = resp.json()
         except Exception as exc:
             st.warning(f"Could not geocode '{city}': {exc} — skipping stop.")
             data = []
