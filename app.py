@@ -552,6 +552,71 @@ def _chart_activity_breakdown(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+def _tab_info() -> None:
+    """Render the Info tab with challenge details and data usage information."""
+    st.subheader("ℹ️ About the Migos Fitness Challenge")
+    st.markdown(
+        """
+        Welcome to the **Migos Fitness Challenge** — a year-long group fitness
+        challenge where everyone tracks their running, walking, and cycling
+        distances together towards a shared goal.
+
+        ---
+
+        ### 📅 Challenge Timeline
+        | | |
+        |---|---|
+        | **Start date** | December 29, 2025 |
+        | **End date** | December 29, 2026 |
+        | **Duration** | 1 year |
+
+        ---
+
+        ### 🎯 The Goal
+        The group aims to collectively cover **7,298 miles** (≈ 11,750 km) over
+        the course of the year — roughly the distance from **Lisbon to Paris**
+        along the virtual European route shown in the 🗺️ Euro Map tab.
+
+        ---
+
+        ### 📊 What Data Do We Use?
+        Activity data is pulled automatically from each participant's
+        **Strava** account via the Strava API. Only the following fields are
+        read from each activity:
+        - Distance (km)
+        - Activity date
+        - Activity type
+
+        No personal profile details, heart-rate data, GPS routes, photos, or
+        private notes are accessed or stored.
+
+        ---
+
+        ### ✅ What Counts Towards the Challenge?
+        All **outdoor and virtual** activities in the following categories count:
+
+        | Category | Included Strava activity types |
+        |---|---|
+        | 🏃 **Run** | Run, Trail Run, Virtual Run |
+        | 🚶 **Walk** | Walk, Hike |
+        | 🚴 **Ride** | Ride, Virtual Ride, Mountain Bike Ride, Gravel Ride, E-Bike Ride |
+
+        Every kilometre (or mile) logged in any of these activity types is added
+        to both the group total and your personal total.
+
+        ---
+
+        ### 🔒 Privacy
+        Your Strava data is only used for this challenge leaderboard and is not
+        shared with any third parties. You can revoke access at any time via
+        [Strava Settings → My Apps](https://www.strava.com/settings/apps).
+        """
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -591,11 +656,12 @@ def main() -> None:
     df = _load_data(athletes_frozen, start_date, end_date)
 
     # Render charts in tabs
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📈 Overall Progress",
         "🦶 Foot Miles",
         "🗺️ Euro Map",
         "📊 Misc",
+        "ℹ️ Info",
     ])
 
     with tab1:
@@ -612,6 +678,9 @@ def main() -> None:
 
     with tab4:
         _chart_activity_breakdown(df, use_miles)
+
+    with tab5:
+        _tab_info()
 
 
 if __name__ == "__main__":
