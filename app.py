@@ -363,7 +363,8 @@ def _chart_route_map(
         tiles="CartoDB positron",
     )
 
-    # Draw route line
+    # Feature group: route line
+    route_fg = folium.FeatureGroup(name="Route")
     route_coords = [[c["lat"], c["lon"]] for c in city_route]
     folium.PolyLine(
         locations=route_coords,
@@ -371,9 +372,10 @@ def _chart_route_map(
         weight=3,
         opacity=0.7,
         tooltip="Challenge route",
-    ).add_to(m)
+    ).add_to(route_fg)
 
-    # City markers
+    # Feature group: city markers
+    cities_fg = folium.FeatureGroup(name="Cities")
     for i, city in enumerate(city_route):
         reached = group_total >= city["cumulative_km"]
         color   = "green" if reached else "gray"
@@ -388,9 +390,10 @@ def _chart_route_map(
                 + (" ✅" if reached else "")
             ),
             icon=folium.Icon(color=color, icon=icon, prefix="fa"),
-        ).add_to(m)
+        ).add_to(cities_fg)
 
-    # Current progress marker (interpolated position)
+    # Feature group: current progress marker (interpolated position)
+    position_fg = folium.FeatureGroup(name="Group position")
     if next_city_idx is not None:
         seg_start = city_route[current_city_idx]
         seg_end   = city_route[next_city_idx]
@@ -408,9 +411,14 @@ def _chart_route_map(
         location=[lat, lon],
         tooltip=f"📍 Group position: {group_total_display} {unit}",
         icon=folium.Icon(color="red", icon="users", prefix="fa"),
-    ).add_to(m)
+    ).add_to(position_fg)
 
-    st_folium(m, width=900, height=500)
+    st_folium(
+        m,
+        feature_group_to_add=[route_fg, cities_fg, position_fg],
+        width=900,
+        height=500,
+    )
 
     col1, col2 = st.columns(2)
     col1.metric("Current position", current_city["name"])
