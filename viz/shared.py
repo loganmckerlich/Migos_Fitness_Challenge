@@ -61,10 +61,12 @@ def pace_emoji(actual: float, target: float) -> str:
 
 def pace_delta_label(actual: float, target: float, unit: str) -> str:
     """
-    Return a human-readable string like '+5.3 mi ahead' or '-2.1 mi behind'.
+    Return a human-readable string like '+5.3 mi ahead', 'on pace', or '-2.1 mi behind'.
     """
     diff = actual - target
-    if diff >= 0:
+    if abs(diff) < 0.05:
+        return "on pace"
+    if diff > 0:
         return f"+{diff:.1f} {unit} ahead"
     return f"{diff:.1f} {unit} behind"
 

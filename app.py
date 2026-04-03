@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import date
 
+import pandas as pd
 import streamlit as st
 
 import config
@@ -92,7 +93,7 @@ def _sidebar() -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300)
-def _load_data(athletes_frozen: tuple, start: date, end: date):
+def _load_data(athletes_frozen: tuple, start: date, end: date) -> pd.DataFrame:
     """Load (or generate) daily distance data."""
     athletes = [{"id": a[0], "name": a[1]} for a in athletes_frozen]
     secrets = None

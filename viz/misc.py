@@ -176,8 +176,10 @@ def _chart_consistency_heatmap(
         .drop_duplicates()
         .copy()
     )
-    active["week"] = pd.to_datetime(active["date"]).dt.isocalendar().week.astype(int)
-    active["year"] = pd.to_datetime(active["date"]).dt.isocalendar().year.astype(int)
+    dates_dt = pd.to_datetime(active["date"])
+    iso_cal  = dates_dt.dt.isocalendar()
+    active["week"] = iso_cal.week.astype(int)
+    active["year"] = iso_cal.year.astype(int)
     active["year_week"] = (
         active["year"].astype(str) + "-W"
         + active["week"].astype(str).str.zfill(2)
