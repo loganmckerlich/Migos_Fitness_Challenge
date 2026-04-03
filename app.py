@@ -23,18 +23,7 @@ import streamlit as st
 import config
 import strava
 from viz import activity_breakdown, athlete_mile_progress, foot_miles, group_progress, misc, route_map
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# UNIT HELPERS  (kept in app.py for the sidebar and title display)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _to_display(km_value: float, use_miles: bool) -> float:
-    return km_value * config.KM_TO_MI if use_miles else km_value
-
-
-def _unit_label(use_miles: bool) -> str:
-    return "mi" if use_miles else "km"
+from viz.shared import to_display as _to_display, unit_label as _unit_label
 
 
 # ─────────────────────────────────────────────────────────────────────────────

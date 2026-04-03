@@ -20,9 +20,18 @@ from viz.shared import build_cumulative, pace_delta_label, pace_emoji, to_displa
 
 
 # Colour palette — one per athlete (same order as athlete_mile_progress)
+# Each entry is (solid_hex, fill_rgba) for the stacked area chart.
 _ATHLETE_COLORS = [
-    "#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A",
-    "#19D3F3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52",
+    ("#636EFA", "rgba(99,110,250,0.6)"),
+    ("#EF553B", "rgba(239,85,59,0.6)"),
+    ("#00CC96", "rgba(0,204,150,0.6)"),
+    ("#AB63FA", "rgba(171,99,250,0.6)"),
+    ("#FFA15A", "rgba(255,161,90,0.6)"),
+    ("#19D3F3", "rgba(25,211,243,0.6)"),
+    ("#FF6692", "rgba(255,102,146,0.6)"),
+    ("#B6E880", "rgba(182,232,128,0.6)"),
+    ("#FF97FF", "rgba(255,151,255,0.6)"),
+    ("#FECB52", "rgba(254,203,82,0.6)"),
 ]
 
 
@@ -77,7 +86,7 @@ def render(
     dates_list = cumulative.index.tolist()
 
     for idx, name in enumerate(cumulative.columns):
-        color  = _ATHLETE_COLORS[idx % len(_ATHLETE_COLORS)]
+        solid, fill = _ATHLETE_COLORS[idx % len(_ATHLETE_COLORS)]
         values = (cumulative[name] * factor).tolist()
         fig.add_trace(
             go.Scatter(
@@ -85,11 +94,9 @@ def render(
                 y=values,
                 mode="lines",
                 name=name,
-                stackgroup="one",      # <-- stacks each trace on the previous
-                line=dict(width=0.5),
-                fillcolor=color.replace(")", ", 0.6)").replace("rgb", "rgba")
-                           if color.startswith("rgb") else color,
-                line_color=color,
+                stackgroup="one",
+                line=dict(width=0.5, color=solid),
+                fillcolor=fill,
             )
         )
 
