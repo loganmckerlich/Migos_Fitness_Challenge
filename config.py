@@ -17,8 +17,6 @@ GOAL_KM: float        = GOAL_MI / KM_TO_MI        # total group distance goal in
 # Replace the IDs with real Strava athlete IDs when USE_DUMMY_DATA is False.
 ATHLETES: list[dict] = [
     {"id": 56163722, "name": "Logan McKerlich"},
-    {"id": 56163722, "name": "Logan McKerlich2"},
-    {"id": 56163722, "name": "Logan McKerlich3"},
 #    {"id": 444444, "name": "Alex Rivera"},
 #    {"id": 555555, "name": "Casey Kim"},
 ]
