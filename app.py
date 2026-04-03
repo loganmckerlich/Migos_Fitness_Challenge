@@ -683,14 +683,14 @@ def main() -> None:
         _tab_info()
 
     st.divider()
+    fallback = "⚡ Powered by <strong>Strava</strong>"
     st.markdown(
-        """
+        f"""
         <div style='text-align: center; padding: 8px 0 4px 0;'>
             <a href='https://www.strava.com' target='_blank' rel='noopener noreferrer'>
                 <img src='https://d3nn82uaxijpm6.cloudfront.net/assets/brands/strava/powered-by-strava-orange.svg'
                      alt='Powered by Strava' height='28'
-                     onerror="this.onerror=null;this.parentElement.innerHTML=
-                       '<span style=\'font-size:0.85em;color:#FC4C02;\'>⚡ Powered by <strong>Strava</strong></span>';">
+                     onerror="this.onerror=null;this.parentElement.innerHTML='<span style=&quot;font-size:0.85em;color:#FC4C02;&quot;>{fallback}</span>';">
             </a>
             <p style='margin: 4px 0 0 0; font-size: 0.78em; color: #888;'>
                 All activity data is provided by Strava.
