@@ -682,6 +682,24 @@ def main() -> None:
     with tab5:
         _tab_info()
 
+    st.divider()
+    st.markdown(
+        """
+        <div style='text-align: center; padding: 8px 0 4px 0;'>
+            <a href='https://www.strava.com' target='_blank' rel='noopener noreferrer'>
+                <img src='https://d3nn82uaxijpm6.cloudfront.net/assets/brands/strava/powered-by-strava-orange.svg'
+                     alt='Powered by Strava' height='28'
+                     onerror="this.onerror=null;this.parentElement.innerHTML=
+                       '<span style=\'font-size:0.85em;color:#FC4C02;\'>⚡ Powered by <strong>Strava</strong></span>';">
+            </a>
+            <p style='margin: 4px 0 0 0; font-size: 0.78em; color: #888;'>
+                All activity data is provided by Strava.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 
 if __name__ == "__main__":
     main()
