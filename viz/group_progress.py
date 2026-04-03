@@ -109,7 +109,7 @@ def render(
             y=trend_values.tolist(),
             mode="lines",
             name=f"Trend ({unit})",
-            line=dict(color="#FFFFFF", width=2, dash="dash"),
+            line=dict(color="#ff3399", width=2, dash="dash"),
         )
     )
 
