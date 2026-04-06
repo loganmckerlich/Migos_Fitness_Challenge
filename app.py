@@ -245,7 +245,7 @@ def main() -> None:
         f"""
         <div style='text-align: center; padding: 8px 0 4px 0;'>
             <a href='https://www.strava.com' target='_blank' rel='noopener noreferrer'>
-                <img src='https://d3nn82uaxijpm6.cloudfront.net/assets/brands/strava/powered-by-strava-orange.svg'
+                <img src='https://upload.wikimedia.org/wikipedia/commons/c/cb/Strava_Logo.svg'
                      alt='Powered by Strava' height='28'
                      onerror="this.onerror=null;this.parentElement.innerHTML='<span style=&quot;font-size:0.85em;color:#FC4C02;&quot;>{fallback}</span>';">
             </a>
