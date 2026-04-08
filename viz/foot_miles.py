@@ -16,7 +16,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 import config
-from viz.shared import pace_delta_label, pace_emoji, to_display, unit_label
+from viz.shared import compute_avg_pace_hr_per_km, pace_delta_label, pace_emoji, to_display, unit_label
 
 
 # Colour palette — same order as athlete_mile_progress for consistency
@@ -32,6 +32,7 @@ def render(
     end: date,
     athletes: list[dict],
     use_miles: bool = True,
+    use_hours: bool = False,
 ) -> None:
     """Render the Foot Mile Progress section."""
     st.subheader("🦶 Foot Mile Progress (Walk + Run)")
@@ -50,34 +51,55 @@ def render(
         st.info("No walking or running data available for the selected date range.")
         return
 
-    # Build cumulative foot-mile table (in km internally)
+    # Build cumulative foot table (km internally, then convert for display)
     all_dates = pd.date_range(start=start, end=min(end, date.today()), freq="D")
-    pivot = foot_df.pivot_table(
+    pivot_km = foot_df.pivot_table(
         index="date", columns="athlete_name", values="km", aggfunc="sum"
     ).reindex(all_dates, fill_value=0)
-    pivot.index.name = "date"
-    cumulative_foot = pivot.fillna(0).cumsum()
+    pivot_km.index.name = "date"
+    cumulative_foot_km = pivot_km.fillna(0).cumsum()
 
     # Pace: 1 foot mile per person per day → convert to km for internal comparison
     foot_mi_per_day_km = 1.0 / config.KM_TO_MI
     elapsed_days       = len(all_dates)
     target_km          = foot_mi_per_day_km * elapsed_days
 
+    if use_hours and "moving_time_hours" in foot_df.columns:
+        # ── Hours mode ────────────────────────────────────────────────────────
+        # Build cumulative hours for foot activities
+        pivot_hrs = foot_df.pivot_table(
+            index="date", columns="athlete_name", values="moving_time_hours", aggfunc="sum"
+        ).reindex(all_dates, fill_value=0)
+        pivot_hrs.index.name = "date"
+        cumulative_foot = pivot_hrs.fillna(0).cumsum()
+
+        # Average pace from foot data (hrs/km) → convert target_km to hours
+        avg_pace    = compute_avg_pace_hr_per_km(foot_df)
+        target_disp = target_km * avg_pace
+        display_unit = "hrs"
+
+        # Pace reference line: 1 mi/day * avg_pace_hr_per_mi per person
+        pace_values = [foot_mi_per_day_km * avg_pace * (i + 1) for i in range(len(all_dates))]
+    else:
+        # ── Distance mode ─────────────────────────────────────────────────────
+        cumulative_foot = cumulative_foot_km * factor
+        target_disp     = target_km * factor
+        display_unit    = unit
+        pace_values     = [foot_mi_per_day_km * factor * (i + 1) for i in range(len(all_dates))]
+
     # ── Status table ──────────────────────────────────────────────────────────
     latest_foot = cumulative_foot.iloc[-1]
     rows = []
     for name in latest_foot.index:
-        actual_km   = float(latest_foot[name])
-        actual_disp = actual_km * factor
-        target_disp = target_km * factor
+        actual_disp = float(latest_foot[name])
         emoji  = pace_emoji(actual_disp, target_disp)
-        delta  = pace_delta_label(actual_disp, target_disp, unit)
+        delta  = pace_delta_label(actual_disp, target_disp, display_unit)
         rows.append(
             {
-                "Athlete":                name,
-                f"Foot {unit}":           round(actual_disp, 1),
-                f"Pace target ({unit})":  round(target_disp, 1),
-                "Pace":                   f"{emoji}  {delta}",
+                "Athlete":                      name,
+                f"Foot {display_unit}":         round(actual_disp, 1),
+                f"Pace target ({display_unit})": round(target_disp, 1),
+                "Pace":                          f"{emoji}  {delta}",
             }
         )
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
@@ -88,7 +110,7 @@ def render(
 
     for idx, name in enumerate(cumulative_foot.columns):
         color  = _ATHLETE_COLORS[idx % len(_ATHLETE_COLORS)]
-        values = (cumulative_foot[name] * factor).tolist()
+        values = cumulative_foot[name].tolist()
         fig.add_trace(
             go.Scatter(
                 x=dates_list,
@@ -99,33 +121,35 @@ def render(
             )
         )
 
-    # Pace reference line (linear: 1 mi/day per person)
-    pace_km_series = pd.Series(
-        [foot_mi_per_day_km * (i + 1) for i in range(len(all_dates))],
-        index=all_dates,
-    )
-    pace_disp = pace_km_series * factor
+    # Pace reference line
+    pace_series = pd.Series(pace_values, index=all_dates)
     fig.add_trace(
         go.Scatter(
             x=all_dates.tolist(),
-            y=pace_disp.tolist(),
+            y=pace_series.tolist(),
             mode="lines",
-            name=f"Pace (1 {unit}/day)",
+            name=f"Pace (1 mi/day in {display_unit})" if use_hours else f"Pace (1 {unit}/day)",
             line=dict(color="#888888", width=2, dash="dash"),
         )
     )
 
     fig.update_layout(
         xaxis_title="Date",
-        yaxis_title=f"Cumulative foot {unit}",
+        yaxis_title=f"Cumulative foot {display_unit}",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(t=40, b=40, l=40, r=20),
         hovermode="x unified",
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    pace_total_disp = target_km * factor
-    st.caption(
-        f"Dashed line = 1 {unit}/day pace target "
-        f"({pace_total_disp:.1f} {unit} after {elapsed_days} days elapsed)."
-    )
+    if use_hours:
+        st.caption(
+            f"Dashed line = 1 mi/day pace target in hours "
+            f"({target_disp:.1f} hrs after {elapsed_days} days, estimated from historical pace)."
+        )
+    else:
+        st.caption(
+            f"Dashed line = 1 {unit}/day pace target "
+            f"({target_disp:.1f} {unit} after {elapsed_days} days elapsed)."
+        )
+
