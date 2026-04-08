@@ -177,7 +177,7 @@ def get_athlete_daily_distances(
         "VirtualRide":       "Ride",
         "MountainBikeRide":  "Ride",
         "GravelRide":        "Ride",
-        "EBikeRide":         "Ride",
+
     }
 
     rows: list[dict] = []
