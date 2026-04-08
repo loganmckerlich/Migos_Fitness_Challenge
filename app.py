@@ -156,7 +156,7 @@ def _tab_info() -> None:
         |---|---|
         | 🏃 **Run** | Run, Trail Run, Virtual Run |
         | 🚶 **Walk** | Walk, Hike |
-        | 🚴 **Ride** | Ride, Virtual Ride, Mountain Bike Ride, Gravel Ride, E-Bike Ride |
+        | 🚴 **Ride** | Ride, Virtual Ride, Mountain Bike Ride, Gravel Ride |
 
         Every kilometre (or mile) logged in any of these activity types is added
         to both the group total and your personal total.
