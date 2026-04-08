@@ -127,7 +127,7 @@ def render(
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    if use_hours:
+    if use_hours and "moving_time_hours" in df.columns:
         st.caption(
             f"Dashed line shows on-trend pace ({per_athlete_goal_disp:.0f} hrs per athlete "
             f"by {end}, estimated from historical pace). "
