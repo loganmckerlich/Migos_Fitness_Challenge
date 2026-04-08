@@ -66,6 +66,9 @@ def _sidebar() -> dict:
     unit      = st.sidebar.radio("Units", ["miles", "km"], index=0)
     use_miles = unit == "miles"
 
+    mode      = st.sidebar.radio("Display mode", ["Distance", "Hours"], index=0)
+    use_hours = mode == "Hours"
+
     goal_km    = config.GOAL_KM
     start_date = config.CHALLENGE_START
     end_date   = config.CHALLENGE_END
@@ -85,6 +88,7 @@ def _sidebar() -> dict:
         "start_date": start_date,
         "end_date":   end_date,
         "use_miles":  use_miles,
+        "use_hours":  use_hours,
     }
 
 
@@ -190,6 +194,7 @@ def main() -> None:
     start_date = cfg["start_date"]
     end_date   = cfg["end_date"]
     use_miles  = cfg["use_miles"]
+    use_hours  = cfg["use_hours"]
 
     unit         = _unit_label(use_miles)
     goal_display = _to_display(goal_km, use_miles)
@@ -219,22 +224,22 @@ def main() -> None:
     ])
 
     with tab1:
-        group_progress.render(df, start_date, end_date, goal_km, config.ATHLETES, use_miles)
+        group_progress.render(df, start_date, end_date, goal_km, config.ATHLETES, use_miles, use_hours)
         st.divider()
-        activity_breakdown.render(df, use_miles)
+        activity_breakdown.render(df, use_miles, use_hours)
 
     with tab2:
-        athlete_mile_progress.render(df, start_date, end_date, goal_km, config.ATHLETES, use_miles)
+        athlete_mile_progress.render(df, start_date, end_date, goal_km, config.ATHLETES, use_miles, use_hours)
 
     with tab3:
-        foot_miles.render(df, start_date, end_date, config.ATHLETES, use_miles)
+        foot_miles.render(df, start_date, end_date, config.ATHLETES, use_miles, use_hours)
 
     with tab4:
         city_route = route_map.build_city_route(tuple(config.CITY_STOPS))
         route_map.render(df, start_date, end_date, city_route, use_miles)
 
     with tab5:
-        misc.render(df, start_date, end_date, use_miles)
+        misc.render(df, start_date, end_date, use_miles, use_hours)
 
     with tab6:
         _tab_info()

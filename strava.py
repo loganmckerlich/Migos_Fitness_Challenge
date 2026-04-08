@@ -34,6 +34,14 @@ _RNG = random.Random(42)
 _DUMMY_ACTIVITY_TYPES = ["Run", "Walk", "Ride"]
 _DUMMY_ACTIVITY_WEIGHTS = [0.45, 0.20, 0.35]
 
+# Approximate pace ranges (minutes per km) for each activity type used to
+# generate realistic dummy moving-time values.
+_DUMMY_PACE_MIN_PER_KM: dict[str, tuple[float, float]] = {
+    "Run":  (5.0, 8.0),    # 5–8 min/km
+    "Walk": (10.0, 15.0),  # 10–15 min/km
+    "Ride": (2.0, 4.0),    # 2–4 min/km
+}
+
 
 def _generate_dummy_daily_distances(
     athletes: list[dict],
@@ -42,7 +50,8 @@ def _generate_dummy_daily_distances(
 ) -> pd.DataFrame:
     """
     Generate plausible per-athlete daily distance rows (km).
-    Returns a DataFrame with columns: date, athlete_id, athlete_name, km, activity_type.
+    Returns a DataFrame with columns:
+        date, athlete_id, athlete_name, km, activity_type, moving_time_hours.
     """
     rows = []
     total_days = (end - start).days + 1
@@ -55,6 +64,8 @@ def _generate_dummy_daily_distances(
                 activity_type = _RNG.choices(
                     _DUMMY_ACTIVITY_TYPES, weights=_DUMMY_ACTIVITY_WEIGHTS, k=1
                 )[0]
+                pace_lo, pace_hi = _DUMMY_PACE_MIN_PER_KM[activity_type]
+                moving_time_hours = round(km * _RNG.uniform(pace_lo, pace_hi) / 60.0, 4)
                 rows.append(
                     {
                         "date": current_date,
@@ -62,6 +73,7 @@ def _generate_dummy_daily_distances(
                         "athlete_name": athlete["name"],
                         "km": km,
                         "activity_type": activity_type,
+                        "moving_time_hours": moving_time_hours,
                     }
                 )
     df = pd.DataFrame(rows)
@@ -200,18 +212,22 @@ def get_athlete_daily_distances(
                 continue
             act_date = datetime.strptime(act["start_date_local"][:10], "%Y-%m-%d").date()
             km = round(act["distance"] / 1000, 2)
+            moving_time_hours = round(act.get("moving_time", 0) / 3600.0, 4)
             rows.append(
                 {
-                    "date":          pd.Timestamp(act_date),
-                    "athlete_id":    athlete["id"],
-                    "athlete_name":  athlete["name"],
-                    "km":            km,
-                    "activity_type": category,
+                    "date":               pd.Timestamp(act_date),
+                    "athlete_id":         athlete["id"],
+                    "athlete_name":       athlete["name"],
+                    "km":                 km,
+                    "activity_type":      category,
+                    "moving_time_hours":  moving_time_hours,
                 }
             )
 
     if not rows:
-        return pd.DataFrame(columns=["date", "athlete_id", "athlete_name", "km", "activity_type"])
+        return pd.DataFrame(
+            columns=["date", "athlete_id", "athlete_name", "km", "activity_type", "moving_time_hours"]
+        )
 
     df = pd.DataFrame(rows)
     df["date"] = pd.to_datetime(df["date"])

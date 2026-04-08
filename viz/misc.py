@@ -34,8 +34,8 @@ _ATHLETE_COLORS = [
 # VIZ 1 — Personal Best Days
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _chart_personal_bests(df: pd.DataFrame, use_miles: bool) -> None:
-    """Horizontal bar chart: each athlete's best single-day distance."""
+def _chart_personal_bests(df: pd.DataFrame, use_miles: bool, use_hours: bool) -> None:
+    """Horizontal bar chart: each athlete's best single-day distance (or hours)."""
     st.subheader("🏆 Personal Best Days")
     st.caption("The single biggest day each athlete has logged so far.")
 
@@ -43,23 +43,40 @@ def _chart_personal_bests(df: pd.DataFrame, use_miles: bool) -> None:
         st.info("No data available.")
         return
 
-    unit   = unit_label(use_miles)
-    factor = config.KM_TO_MI if use_miles else 1.0
+    if use_hours and "moving_time_hours" in df.columns:
+        display_unit = "hrs"
+        value_col    = "moving_time_hours"
+        x_label      = "Best single-day time (hrs)"
+    else:
+        display_unit = unit_label(use_miles)
+        factor       = config.KM_TO_MI if use_miles else 1.0
+        value_col    = "km"
+        x_label      = f"Best single-day distance ({display_unit})"
 
     # Sum all activities per athlete per day, then find the max day
     daily = (
-        df.groupby(["athlete_name", "date"])["km"]
+        df.groupby(["athlete_name", "date"])[value_col]
         .sum()
         .reset_index()
     )
-    bests = (
-        daily.groupby("athlete_name")["km"]
-        .max()
-        .mul(factor)
-        .reset_index()
-        .rename(columns={"km": unit})
-        .sort_values(unit, ascending=True)
-    )
+
+    if use_hours and "moving_time_hours" in df.columns:
+        bests = (
+            daily.groupby("athlete_name")[value_col]
+            .max()
+            .reset_index()
+            .rename(columns={value_col: display_unit})
+            .sort_values(display_unit, ascending=True)
+        )
+    else:
+        bests = (
+            daily.groupby("athlete_name")[value_col]
+            .max()
+            .mul(factor)
+            .reset_index()
+            .rename(columns={value_col: display_unit})
+            .sort_values(display_unit, ascending=True)
+        )
 
     colors = [
         _ATHLETE_COLORS[i % len(_ATHLETE_COLORS)]
@@ -68,16 +85,16 @@ def _chart_personal_bests(df: pd.DataFrame, use_miles: bool) -> None:
 
     fig = go.Figure(
         go.Bar(
-            x=bests[unit].round(1),
+            x=bests[display_unit].round(1),
             y=bests["athlete_name"],
             orientation="h",
             marker_color=colors,
-            text=bests[unit].round(1).astype(str) + f" {unit}",
+            text=bests[display_unit].round(1).astype(str) + f" {display_unit}",
             textposition="outside",
         )
     )
     fig.update_layout(
-        xaxis_title=f"Best single-day distance ({unit})",
+        xaxis_title=x_label,
         yaxis_title="",
         margin=dict(t=20, b=40, l=20, r=80),
     )
@@ -88,9 +105,9 @@ def _chart_personal_bests(df: pd.DataFrame, use_miles: bool) -> None:
 # VIZ 2 — Activity DNA
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _chart_activity_dna(df: pd.DataFrame, use_miles: bool) -> None:
+def _chart_activity_dna(df: pd.DataFrame, use_miles: bool, use_hours: bool) -> None:
     """
-    Per-athlete stacked horizontal bar showing how many miles came from
+    Per-athlete stacked horizontal bar showing how many miles or hours came from
     each activity type — their unique "activity DNA".
     """
     st.subheader("🧬 Activity DNA")
@@ -103,16 +120,25 @@ def _chart_activity_dna(df: pd.DataFrame, use_miles: bool) -> None:
         st.info("No activity type data available.")
         return
 
-    unit   = unit_label(use_miles)
-    factor = config.KM_TO_MI if use_miles else 1.0
+    if use_hours and "moving_time_hours" in df.columns:
+        display_unit = "hrs"
+        value_col    = "moving_time_hours"
+        x_label      = f"Total {display_unit}"
+    else:
+        display_unit = unit_label(use_miles)
+        factor       = config.KM_TO_MI if use_miles else 1.0
+        value_col    = "km"
+        x_label      = f"Total {display_unit}"
 
     totals = (
-        df.groupby(["athlete_name", "activity_type"])["km"]
+        df.groupby(["athlete_name", "activity_type"])[value_col]
         .sum()
-        .mul(factor)
         .reset_index()
-        .rename(columns={"km": unit})
+        .rename(columns={value_col: display_unit})
     )
+
+    if not (use_hours and "moving_time_hours" in df.columns):
+        totals[display_unit] = totals[display_unit] * factor
 
     athletes = totals["athlete_name"].unique().tolist()
     activity_types = totals["activity_type"].unique().tolist()
@@ -122,7 +148,7 @@ def _chart_activity_dna(df: pd.DataFrame, use_miles: bool) -> None:
         subset = totals[totals["activity_type"] == act_type]
         # Align to full athlete list
         values = [
-            float(subset[subset["athlete_name"] == a][unit].sum())
+            float(subset[subset["athlete_name"] == a][display_unit].sum())
             for a in athletes
         ]
         fig.add_trace(
@@ -132,14 +158,14 @@ def _chart_activity_dna(df: pd.DataFrame, use_miles: bool) -> None:
                 x=[round(v, 1) for v in values],
                 orientation="h",
                 marker_color=_COLOR_MAP.get(act_type, "#AB63FA"),
-                text=[f"{v:.1f} {unit}" for v in values],
+                text=[f"{v:.1f} {display_unit}" for v in values],
                 textposition="inside",
             )
         )
 
     fig.update_layout(
         barmode="stack",
-        xaxis_title=f"Total {unit}",
+        xaxis_title=x_label,
         yaxis_title="",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         margin=dict(t=40, b=40, l=20, r=20),
@@ -229,10 +255,12 @@ def render(
     start: date,
     end: date,
     use_miles: bool = True,
+    use_hours: bool = False,
 ) -> None:
     """Render all three Misc visualizations."""
-    _chart_activity_dna(df, use_miles)
+    _chart_activity_dna(df, use_miles, use_hours)
     st.divider()
-    _chart_personal_bests(df, use_miles)
+    _chart_personal_bests(df, use_miles, use_hours)
     st.divider()
     _chart_consistency_heatmap(df, start, end)
+

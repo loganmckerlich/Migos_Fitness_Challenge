@@ -76,17 +76,64 @@ def pace_delta_label(actual: float, target: float, unit: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def build_cumulative(df: pd.DataFrame, start: date, end: date) -> pd.DataFrame:
+def build_cumulative(
+    df: pd.DataFrame,
+    start: date,
+    end: date,
+    value_col: str = "km",
+) -> pd.DataFrame:
     """
-    Pivot daily distances into a cumulative daily table.
-    Columns: date + one column per athlete name (values in km).
+    Pivot daily values into a cumulative daily table.
+
+    Parameters
+    ----------
+    df : DataFrame with at least ``date``, ``athlete_name``, and ``value_col`` columns.
+    start, end : Challenge date range.
+    value_col : Column to accumulate (default ``"km"``; use ``"moving_time_hours"``
+                for hours-based visualizations).
+
+    Returns
+    -------
+    DataFrame with columns = athlete names and a DatetimeIndex ``date``.
+    Values are the running cumulative total of *value_col* up to each day.
     """
     all_dates = pd.date_range(start=start, end=min(end, date.today()), freq="D")
 
+    if value_col not in df.columns:
+        # Graceful fallback: return zeros for all athletes
+        athletes = df["athlete_name"].unique() if not df.empty else []
+        empty = pd.DataFrame(0.0, index=all_dates, columns=athletes)
+        empty.index.name = "date"
+        return empty
+
     pivot = df.pivot_table(
-        index="date", columns="athlete_name", values="km", aggfunc="sum"
+        index="date", columns="athlete_name", values=value_col, aggfunc="sum"
     ).reindex(all_dates, fill_value=0)
     pivot.index.name = "date"
 
     cumulative = pivot.fillna(0).cumsum()
     return cumulative
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HOURS / PACE HELPERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+_DEFAULT_PACE_HR_PER_KM: float = 0.1  # ~6 min/km — sensible running fallback
+
+
+def compute_avg_pace_hr_per_km(df: pd.DataFrame) -> float:
+    """
+    Return the average pace in **hours per km** estimated from *df*.
+
+    The estimate is ``total_moving_time_hours / total_km``.  Falls back to
+    ``_DEFAULT_PACE_HR_PER_KM`` when there is no usable data.
+    """
+    if df.empty or "moving_time_hours" not in df.columns:
+        return _DEFAULT_PACE_HR_PER_KM
+    total_hours = df["moving_time_hours"].sum()
+    total_km = df["km"].sum()
+    if total_km <= 0:
+        return _DEFAULT_PACE_HR_PER_KM
+    return total_hours / total_km
+
