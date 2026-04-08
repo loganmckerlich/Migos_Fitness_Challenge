@@ -107,7 +107,7 @@ def _chart_personal_bests(df: pd.DataFrame, use_miles: bool, use_hours: bool) ->
 
 def _chart_activity_dna(df: pd.DataFrame, use_miles: bool, use_hours: bool) -> None:
     """
-    Per-athlete stacked horizontal bar showing how many miles (or hours) came from
+    Per-athlete stacked horizontal bar showing how many miles or hours came from
     each activity type — their unique "activity DNA".
     """
     st.subheader("🧬 Activity DNA")
