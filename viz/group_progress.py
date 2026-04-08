@@ -136,7 +136,7 @@ def render(
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    if use_hours:
+    if use_hours and "moving_time_hours" in df.columns:
         st.caption(
             f"Each coloured band shows one athlete's contribution to the group total (hours). "
             f"The dashed trend line is estimated from your historical pace "
