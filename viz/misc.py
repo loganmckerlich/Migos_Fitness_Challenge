@@ -7,7 +7,6 @@ viz/misc.py — Bonus visualizations for the Misc tab.
 4. 🐆 Speed vs Animals    — compare athlete top speeds to animals & vehicles
 5. 🎬 Moving Time         — total hours expressed as movies, flights, work days
 6. ❤️ Heart Rate Highs    — highest recorded heart rate per athlete
-7. 💀 Suffer Score        — leaderboard with delta-style power rankings
 """
 
 from __future__ import annotations
@@ -256,11 +255,11 @@ def _chart_consistency_heatmap(
 
 # Reference speeds in km/h (name, speed_kph, color, emoji)
 _SPEED_REFS: list[tuple[str, float, str, str]] = [
-    ("House Cat",        48.0,  "#FFA500", "🐱"),
-    ("Grizzly Bear",     56.0,  "#8B4513", "🐻"),
-    ("Horse",            88.0,  "#8B6914", "🐴"),
-    ("Cheetah",         112.0,  "#DAA520", "🐆"),
-    ("Falcon (dive)",   389.0,  "#4169E1", "🦅"),
+    ("Tortoise",   0.3,  "#556B2F", "🐢"),
+    ("Chicken",   14.0,  "#FFA500", "🐓"),
+    ("Pig",       18.0,  "#FF69B4", "🐷"),
+    ("Squirrel",  19.0,  "#8B4513", "🐿️"),
+    ("Deer",      40.0,  "#228B22", "🦌"),
 ]
 
 
@@ -359,7 +358,7 @@ _TIME_REFS: list[tuple[str, float, str]] = [
 
 
 def _chart_moving_time(df: pd.DataFrame) -> None:
-    """Bar chart of total moving time expressed as everyday time units."""
+    """Table of total moving time expressed as everyday time units."""
     st.subheader("🎬 Moving Time Equivalents")
     st.caption("How does your total moving time compare to everyday activities?")
 
@@ -374,41 +373,13 @@ def _chart_moving_time(df: pd.DataFrame) -> None:
         .rename(columns={"moving_time_hours": "hours"})
     )
 
-    fig = go.Figure()
-
-    for eq_label, eq_hours, eq_emoji in _TIME_REFS:
-        values = (athlete_hours["hours"] / eq_hours).round(1)
-        fig.add_trace(
-            go.Bar(
-                name=f"{eq_emoji} {eq_label}",
-                x=athlete_hours["athlete_name"].tolist(),
-                y=values.tolist(),
-                text=[f"{v:,.1f}" for v in values],
-                textposition="outside",
-                hovertemplate=(
-                    f"<b>%{{x}}</b><br>{eq_emoji} {eq_label}: %{{y:,.1f}}"
-                    "<extra></extra>"
-                ),
-            )
-        )
-
-    fig.update_layout(
-        barmode="group",
-        yaxis_title="Equivalents",
-        xaxis_title="",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(t=60, b=40, l=20, r=20),
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-    with st.expander("📋 Full moving-time table"):
-        rows = []
-        for _, row in athlete_hours.iterrows():
-            entry: dict = {"Athlete": row["athlete_name"], "Total hours": f"{row['hours']:,.1f}"}
-            for eq_label, eq_hours, eq_emoji in _TIME_REFS:
-                entry[f"{eq_emoji} {eq_label}"] = f"{row['hours'] / eq_hours:,.1f}"
-            rows.append(entry)
-        st.dataframe(pd.DataFrame(rows).set_index("Athlete"), use_container_width=True)
+    rows = []
+    for _, row in athlete_hours.iterrows():
+        entry: dict = {"Athlete": row["athlete_name"], "Total hours": f"{row['hours']:,.1f}"}
+        for eq_label, eq_hours, eq_emoji in _TIME_REFS:
+            entry[f"{eq_emoji} {eq_label}"] = f"{row['hours'] / eq_hours:,.1f}"
+        rows.append(entry)
+    st.dataframe(pd.DataFrame(rows).set_index("Athlete"), use_container_width=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -480,71 +451,6 @@ def _chart_heart_rate_highs(df: pd.DataFrame) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# VIZ 7 — Suffer Score Leaderboard
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _chart_suffer_score(df: pd.DataFrame) -> None:
-    """Power-rankings-style suffer score leaderboard with total and per-activity context."""
-    st.subheader("💀 Suffer Score Leaderboard")
-    st.caption(
-        "Total suffer score accumulated since the start of the challenge. "
-        "Higher = more suffering = more bragging rights."
-    )
-
-    if df.empty or "suffer_score" not in df.columns:
-        st.info("No suffer score data available.")
-        return
-
-    ss_df = df.dropna(subset=["suffer_score"])
-    if ss_df.empty:
-        st.info("No suffer score data available.")
-        return
-
-    totals = (
-        ss_df.groupby("athlete_name")["suffer_score"]
-        .sum()
-        .reset_index()
-        .sort_values("suffer_score", ascending=False)
-        .reset_index(drop=True)
-    )
-
-    # Podium emojis
-    medals = ["🥇", "🥈", "🥉"]
-
-    # Summary metrics row
-    cols = st.columns(len(totals))
-    for i, (col, (_, row)) in enumerate(zip(cols, totals.iterrows())):
-        medal = medals[i] if i < len(medals) else f"#{i + 1}"
-        col.metric(
-            label=f"{medal} {row['athlete_name']}",
-            value=f"{row['suffer_score']:,.0f}",
-        )
-
-    # Bar chart
-    colors = [
-        _ATHLETE_COLORS[i % len(_ATHLETE_COLORS)]
-        for i in range(len(totals))
-    ]
-
-    fig = go.Figure(
-        go.Bar(
-            x=totals["athlete_name"].tolist(),
-            y=totals["suffer_score"].tolist(),
-            marker_color=colors,
-            text=[f"{v:,.0f}" for v in totals["suffer_score"]],
-            textposition="outside",
-            hovertemplate="<b>%{x}</b><br>Suffer score: %{y:,.0f}<extra></extra>",
-        )
-    )
-    fig.update_layout(
-        yaxis_title="Total suffer score",
-        xaxis_title="",
-        margin=dict(t=20, b=40, l=20, r=20),
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # PUBLIC ENTRY POINT
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -567,6 +473,4 @@ def render(
     _chart_moving_time(df)
     st.divider()
     _chart_heart_rate_highs(df)
-    st.divider()
-    _chart_suffer_score(df)
 
