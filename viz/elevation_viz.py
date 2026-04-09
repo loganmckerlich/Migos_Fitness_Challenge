@@ -71,17 +71,26 @@ def render(df: pd.DataFrame, start: date, end: date) -> None:
     fig = go.Figure()
 
     # ── Landmark bars ─────────────────────────────────────────────────────────
-    for name, height, color, emoji in visible_landmarks:
+    # Space bars evenly across the date range so they share the same date x-axis
+    # as the athlete lines.
+    n_landmarks = len(visible_landmarks)
+    date_range_days = max((pd.Timestamp(end) - pd.Timestamp(start)).days, 1)
+    step_days = date_range_days / (n_landmarks + 1)
+    # Bar width: 60 % of the spacing, expressed in milliseconds for date axes
+    bar_width_ms = int(step_days * 0.6 * 86_400_000)
+
+    for i, (name, height, color, emoji) in enumerate(visible_landmarks):
         display_name = f"{emoji} {name}"
+        bar_date = pd.Timestamp(start) + pd.Timedelta(days=step_days * (i + 1))
         fig.add_trace(
             go.Bar(
                 name=display_name,
-                x=[display_name],
+                x=[bar_date],
                 y=[height],
+                width=bar_width_ms,
                 marker_color=color,
                 marker_line_color="rgba(0,0,0,0.3)",
                 marker_line_width=1,
-                width=0.6,
                 showlegend=True,
                 legendgroup="landmarks",
                 legendgrouptitle_text="Landmarks",
@@ -129,6 +138,7 @@ def render(df: pd.DataFrame, start: date, end: date) -> None:
     fig.update_layout(
         yaxis_title="Elevation (m)",
         xaxis_title="",
+        xaxis=dict(showticklabels=False),
         legend=dict(
             orientation="v",
             yanchor="top",
@@ -138,8 +148,8 @@ def render(df: pd.DataFrame, start: date, end: date) -> None:
             groupclick="toggleitem",
         ),
         margin=dict(t=40, b=60, l=60, r=160),
-        hovermode="x unified",
-        barmode="group",
+        hovermode="closest",
+        barmode="overlay",
     )
 
     st.plotly_chart(fig, use_container_width=True)

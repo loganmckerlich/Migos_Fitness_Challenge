@@ -173,9 +173,16 @@ def _fetch_athlete_activities(
     return activities
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PUBLIC API
-# ─────────────────────────────────────────────────────────────────────────────
+def _fetch_activity_detail(access_token: str, activity_id: int) -> dict:
+    """Fetch full details for a single activity (includes calories)."""
+    resp = requests.get(
+        f"{STRAVA_BASE_URL}/activities/{activity_id}",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
 
 
 def get_athlete_daily_distances(
@@ -251,7 +258,9 @@ def get_athlete_daily_distances(
             act_date = datetime.strptime(act["start_date_local"][:10], "%Y-%m-%d").date()
             km = round(act["distance"] / 1000, 2)
             moving_time_hours = round(act.get("moving_time", 0) / 3600.0, 4)
-            calories = act.get("calories") or 0
+            # calories is not available in SummaryActivity; fetch the detailed activity
+            detail = _fetch_activity_detail(access_token, act["id"])
+            calories = detail.get("calories") or 0
             elevation_gain_m = round(act.get("total_elevation_gain", 0), 1)
             max_speed_kph = round((act.get("max_speed") or 0) * 3.6, 1)  # m/s → km/h
             max_heartrate = act.get("max_heartrate")  # may be None
