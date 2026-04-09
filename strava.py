@@ -42,6 +42,33 @@ _DUMMY_PACE_MIN_PER_KM: dict[str, tuple[float, float]] = {
     "Ride": (2.0, 4.0),    # 2–4 min/km
 }
 
+# Approximate calories burned per km by activity type
+_DUMMY_CALORIES_PER_KM: dict[str, tuple[float, float]] = {
+    "Run":  (65.0, 80.0),   # 65–80 cal/km
+    "Walk": (50.0, 65.0),   # 50–65 cal/km
+    "Ride": (30.0, 50.0),   # 30–50 cal/km
+}
+
+# Elevation gain per km (metres) by activity type
+_DUMMY_ELEVATION_PER_KM: dict[str, tuple[float, float]] = {
+    "Run":  (10.0, 40.0),   # 10–40 m/km
+    "Walk": (15.0, 60.0),   # 15–60 m/km (often hillier hikes)
+    "Ride": (5.0, 25.0),    # 5–25 m/km
+}
+
+# Max speed (km/h) by activity type
+_DUMMY_MAX_SPEED_KPH: dict[str, tuple[float, float]] = {
+    "Run":  (12.0, 22.0),   # 12–22 km/h
+    "Walk": (5.0,  8.0),    # 5–8 km/h
+    "Ride": (30.0, 60.0),   # 30–60 km/h
+}
+
+# Max heart rate (bpm)
+_DUMMY_MAX_HEARTRATE: tuple[float, float] = (130.0, 195.0)
+
+# Suffer score
+_DUMMY_SUFFER_SCORE: tuple[float, float] = (1.0, 250.0)
+
 
 def _generate_dummy_daily_distances(
     athletes: list[dict],
@@ -51,7 +78,8 @@ def _generate_dummy_daily_distances(
     """
     Generate plausible per-athlete daily distance rows (km).
     Returns a DataFrame with columns:
-        date, athlete_id, athlete_name, km, activity_type, moving_time_hours.
+        date, athlete_id, athlete_name, km, activity_type, moving_time_hours,
+        calories, elevation_gain_m, max_speed_kph, max_heartrate, suffer_score.
     """
     rows = []
     total_days = (end - start).days + 1
@@ -66,6 +94,11 @@ def _generate_dummy_daily_distances(
                 )[0]
                 pace_lo, pace_hi = _DUMMY_PACE_MIN_PER_KM[activity_type]
                 moving_time_hours = round(km * _RNG.uniform(pace_lo, pace_hi) / 60.0, 4)
+                calories = round(km * _RNG.uniform(*_DUMMY_CALORIES_PER_KM[activity_type]))
+                elevation_gain_m = round(km * _RNG.uniform(*_DUMMY_ELEVATION_PER_KM[activity_type]), 1)
+                max_speed_kph = round(_RNG.uniform(*_DUMMY_MAX_SPEED_KPH[activity_type]), 1)
+                max_heartrate = round(_RNG.uniform(*_DUMMY_MAX_HEARTRATE))
+                suffer_score = round(_RNG.uniform(*_DUMMY_SUFFER_SCORE))
                 rows.append(
                     {
                         "date": current_date,
@@ -74,6 +107,11 @@ def _generate_dummy_daily_distances(
                         "km": km,
                         "activity_type": activity_type,
                         "moving_time_hours": moving_time_hours,
+                        "calories": calories,
+                        "elevation_gain_m": elevation_gain_m,
+                        "max_speed_kph": max_speed_kph,
+                        "max_heartrate": max_heartrate,
+                        "suffer_score": suffer_score,
                     }
                 )
     df = pd.DataFrame(rows)
@@ -213,6 +251,11 @@ def get_athlete_daily_distances(
             act_date = datetime.strptime(act["start_date_local"][:10], "%Y-%m-%d").date()
             km = round(act["distance"] / 1000, 2)
             moving_time_hours = round(act.get("moving_time", 0) / 3600.0, 4)
+            calories = act.get("calories") or 0
+            elevation_gain_m = round(act.get("total_elevation_gain", 0), 1)
+            max_speed_kph = round((act.get("max_speed") or 0) * 3.6, 1)  # m/s → km/h
+            max_heartrate = act.get("max_heartrate")  # may be None
+            suffer_score = act.get("suffer_score")    # may be None
             rows.append(
                 {
                     "date":               pd.Timestamp(act_date),
@@ -221,12 +264,19 @@ def get_athlete_daily_distances(
                     "km":                 km,
                     "activity_type":      category,
                     "moving_time_hours":  moving_time_hours,
+                    "calories":           calories,
+                    "elevation_gain_m":   elevation_gain_m,
+                    "max_speed_kph":      max_speed_kph,
+                    "max_heartrate":      max_heartrate,
+                    "suffer_score":       suffer_score,
                 }
             )
 
     if not rows:
         return pd.DataFrame(
-            columns=["date", "athlete_id", "athlete_name", "km", "activity_type", "moving_time_hours"]
+            columns=["date", "athlete_id", "athlete_name", "km", "activity_type",
+                     "moving_time_hours", "calories", "elevation_gain_m",
+                     "max_speed_kph", "max_heartrate", "suffer_score"]
         )
 
     df = pd.DataFrame(rows)
