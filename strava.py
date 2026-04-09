@@ -16,6 +16,8 @@ from typing import Optional
 import pandas as pd
 import requests
 
+_KJ_TO_KCAL: float = 0.239  # 1 kilojoule ≈ 0.239 kilocalories
+
 # ── Feature flag ──────────────────────────────────────────────────────────────
 USE_DUMMY_DATA: bool = False   # ← flip to False to use the live Strava API
 
@@ -251,7 +253,7 @@ def get_athlete_daily_distances(
             act_date = datetime.strptime(act["start_date_local"][:10], "%Y-%m-%d").date()
             km = round(act["distance"] / 1000, 2)
             moving_time_hours = round(act.get("moving_time", 0) / 3600.0, 4)
-            calories = act.get("calories") or 0
+            calories = act.get("calories") or round((act.get("kilojoules") or 0) * _KJ_TO_KCAL)
             elevation_gain_m = round(act.get("total_elevation_gain", 0), 1)
             max_speed_kph = round((act.get("max_speed") or 0) * 3.6, 1)  # m/s → km/h
             max_heartrate = act.get("max_heartrate")  # may be None

@@ -78,6 +78,7 @@ def render(df: pd.DataFrame, start: date, end: date) -> None:
                 name=display_name,
                 x=[display_name],
                 y=[height],
+                xaxis="x2",
                 marker_color=color,
                 marker_line_color="rgba(0,0,0,0.3)",
                 marker_line_width=1,
@@ -129,6 +130,14 @@ def render(df: pd.DataFrame, start: date, end: date) -> None:
     fig.update_layout(
         yaxis_title="Elevation (m)",
         xaxis_title="",
+        # Secondary x-axis for landmark bars: categorical and evenly spaced,
+        # overlaid on the date-based primary axis; tick labels hidden.
+        xaxis2=dict(
+            overlaying="x",
+            side="bottom",
+            showticklabels=False,
+            showgrid=False,
+        ),
         legend=dict(
             orientation="v",
             yanchor="top",
