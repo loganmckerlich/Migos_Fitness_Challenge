@@ -16,7 +16,12 @@ from typing import Optional
 import pandas as pd
 import requests
 
-_KJ_TO_KCAL: float = 0.239  # 1 kilojoule ≈ 0.239 kilocalories
+# Strava's `kilojoules` field represents mechanical work output.  Human
+# cycling efficiency is roughly 25 %, so metabolic kilocalories ≈
+# mechanical_kJ / 0.25 / 4.184 ≈ mechanical_kJ * 0.956.  Using 1.0 as a
+# round-number approximation matches the well-known "1 kJ ≈ 1 kcal" rule
+# of thumb used by Strava and Garmin (kilocalories ≈ kilojoules for rides).
+_KJ_TO_KCAL: float = 1.0  # mechanical kJ → metabolic kcal (efficiency ≈ 25 %)
 
 # ── Feature flag ──────────────────────────────────────────────────────────────
 USE_DUMMY_DATA: bool = False   # ← flip to False to use the live Strava API

@@ -1,7 +1,7 @@
 """
 viz/calorie_viz.py — Calorie equivalents visualization.
 
-Displays a chart of calories burned by each athlete alongside fun
+Displays a table of calories burned by each athlete alongside fun
 food/body-composition equivalents.
 
 Toggle:
@@ -14,7 +14,6 @@ from __future__ import annotations
 from datetime import date
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 # ── Calorie reference values ──────────────────────────────────────────────────
@@ -26,13 +25,6 @@ _CALORIE_REFS: dict[str, int] = {
     "lb body fat 💪":      3_500,
 }
 
-# Athlete colour palette (mirrors misc.py / group_progress.py)
-_ATHLETE_COLORS = [
-    "#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A",
-    "#19D3F3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52",
-]
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -41,40 +33,6 @@ def _weeks_elapsed(start: date, end: date) -> float:
     """Return the number of full/partial weeks between *start* and today (capped at *end*)."""
     days = (min(date.today(), end) - start).days + 1
     return max(days / 7.0, 1.0)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CHART — equivalents bar chart
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _chart_equivalents(totals: pd.Series, label_suffix: str) -> None:
-    """Render a grouped bar chart of calorie equivalents per athlete."""
-    fig = go.Figure()
-
-    for eq_name, eq_cal in _CALORIE_REFS.items():
-        values = (totals / eq_cal).round(1)
-        fig.add_trace(
-            go.Bar(
-                name=eq_name,
-                x=totals.index.tolist(),
-                y=values.tolist(),
-                text=[f"{v:,.1f}" for v in values],
-                textposition="outside",
-                hovertemplate=(
-                    f"<b>%{{x}}</b><br>{eq_name}: %{{y:,.1f}}{label_suffix}"
-                    "<extra></extra>"
-                ),
-            )
-        )
-
-    fig.update_layout(
-        barmode="group",
-        yaxis_title=f"Equivalents{label_suffix}",
-        xaxis_title="",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(t=60, b=40, l=20, r=20),
-    )
-    st.plotly_chart(fig, use_container_width=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -144,9 +102,5 @@ def render(df: pd.DataFrame, start: date, end: date) -> None:
 
     st.divider()
 
-    # ── Bar chart ─────────────────────────────────────────────────────────────
-    _chart_equivalents(totals, label_suffix)
-
-    # ── Data table ────────────────────────────────────────────────────────────
-    with st.expander("📋 Full equivalents table"):
-        _table_calories(totals, label_suffix)
+    # ── Equivalents table ─────────────────────────────────────────────────────
+    _table_calories(totals, label_suffix)
