@@ -1,9 +1,13 @@
 """
-viz/misc.py — Three bonus visualizations for the Misc tab.
+viz/misc.py — Bonus visualizations for the Misc tab.
 
 1. 🏆 Personal Best Days  — horizontal bar of each athlete's single best day
 2. 🧬 Activity DNA        — per-athlete stacked bar: run vs walk vs ride miles
 3. 📅 Training Consistency — weekly active-day heatmap per athlete
+4. 🐆 Speed vs Animals    — compare athlete top speeds to animals & vehicles
+5. 🎬 Moving Time         — total hours expressed as movies, flights, work days
+6. ❤️ Heart Rate Highs    — highest recorded heart rate per athlete
+7. 💀 Suffer Score        — leaderboard with delta-style power rankings
 """
 
 from __future__ import annotations
@@ -247,6 +251,295 @@ def _chart_consistency_heatmap(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# VIZ 4 — Speed vs Animals
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Reference speeds in km/h (name, speed_kph, color, emoji)
+_SPEED_REFS: list[tuple[str, float, str, str]] = [
+    ("House Cat",        48.0,  "#FFA500", "🐱"),
+    ("Grizzly Bear",     56.0,  "#8B4513", "🐻"),
+    ("Horse",            88.0,  "#8B6914", "🐴"),
+    ("Cheetah",         112.0,  "#DAA520", "🐆"),
+    ("Falcon (dive)",   389.0,  "#4169E1", "🦅"),
+]
+
+
+def _chart_speed_vs_animals(df: pd.DataFrame) -> None:
+    """Horizontal grouped bar comparing athlete top speeds to reference speeds."""
+    st.subheader("🐆 Speed vs Animals")
+    st.caption("Your recorded top speed versus some well-known fast creatures.")
+
+    if df.empty or "max_speed_kph" not in df.columns:
+        st.info("No speed data available.")
+        return
+
+    # Athlete top speeds
+    athlete_tops = (
+        df.groupby("athlete_name")["max_speed_kph"]
+        .max()
+        .reset_index()
+        .rename(columns={"max_speed_kph": "speed_kph"})
+    )
+
+    fig = go.Figure()
+
+    # Athlete bars
+    for idx, row in athlete_tops.iterrows():
+        color = _ATHLETE_COLORS[idx % len(_ATHLETE_COLORS)]
+        fig.add_trace(
+            go.Bar(
+                name=row["athlete_name"],
+                y=[row["athlete_name"]],
+                x=[row["speed_kph"]],
+                orientation="h",
+                marker_color=color,
+                text=f"{row['speed_kph']:.1f} km/h",
+                textposition="outside",
+                hovertemplate=(
+                    f"<b>{row['athlete_name']}</b><br>"
+                    f"Top speed: {row['speed_kph']:.1f} km/h<extra></extra>"
+                ),
+            )
+        )
+
+    # Reference vertical lines
+    for ref_name, ref_speed, ref_color, ref_emoji in _SPEED_REFS:
+        fig.add_vline(
+            x=ref_speed,
+            line_dash="dot",
+            line_color=ref_color,
+            line_width=1.5,
+            opacity=0.7,
+            annotation_text=f"{ref_emoji} {ref_name} ({ref_speed:.0f})",
+            annotation_position="top",
+            annotation_font_size=10,
+            annotation_font_color=ref_color,
+        )
+
+    # Find a sensible x-axis range
+    max_speed = max(
+        athlete_tops["speed_kph"].max() if not athlete_tops.empty else 0,
+        max(s for _, s, _, _ in _SPEED_REFS),
+    )
+
+    fig.update_layout(
+        xaxis_title="Speed (km/h)",
+        xaxis_range=[0, max_speed * 1.15],
+        yaxis_title="",
+        showlegend=False,
+        margin=dict(t=60, b=40, l=20, r=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VIZ 5 — Moving Time Equivalents
+# ─────────────────────────────────────────────────────────────────────────────
+
+# (label, hours, emoji)
+_TIME_REFS: list[tuple[str, float, str]] = [
+    ("8-hr work day",        8.0,  "💼"),
+    ("Average movie",        1.9,  "🎬"),
+    ("Flight to Europe",     9.0,  "✈️"),
+    ("Season of a TV show",  9.0,  "📺"),
+    ("Cross-country road trip", 40.0, "🚗"),
+]
+
+
+def _chart_moving_time(df: pd.DataFrame) -> None:
+    """Bar chart of total moving time expressed as everyday time units."""
+    st.subheader("🎬 Moving Time Equivalents")
+    st.caption("How does your total moving time compare to everyday activities?")
+
+    if df.empty or "moving_time_hours" not in df.columns:
+        st.info("No moving-time data available.")
+        return
+
+    athlete_hours = (
+        df.groupby("athlete_name")["moving_time_hours"]
+        .sum()
+        .reset_index()
+        .rename(columns={"moving_time_hours": "hours"})
+    )
+
+    fig = go.Figure()
+
+    for eq_label, eq_hours, eq_emoji in _TIME_REFS:
+        values = (athlete_hours["hours"] / eq_hours).round(1)
+        fig.add_trace(
+            go.Bar(
+                name=f"{eq_emoji} {eq_label}",
+                x=athlete_hours["athlete_name"].tolist(),
+                y=values.tolist(),
+                text=[f"{v:,.1f}" for v in values],
+                textposition="outside",
+                hovertemplate=(
+                    f"<b>%{{x}}</b><br>{eq_emoji} {eq_label}: %{{y:,.1f}}"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        barmode="group",
+        yaxis_title="Equivalents",
+        xaxis_title="",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(t=60, b=40, l=20, r=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    with st.expander("📋 Full moving-time table"):
+        rows = []
+        for _, row in athlete_hours.iterrows():
+            entry: dict = {"Athlete": row["athlete_name"], "Total hours": f"{row['hours']:,.1f}"}
+            for eq_label, eq_hours, eq_emoji in _TIME_REFS:
+                entry[f"{eq_emoji} {eq_label}"] = f"{row['hours'] / eq_hours:,.1f}"
+            rows.append(entry)
+        st.dataframe(pd.DataFrame(rows).set_index("Athlete"), use_container_width=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VIZ 6 — Heart Rate Highs
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _chart_heart_rate_highs(df: pd.DataFrame) -> None:
+    """Horizontal bar chart of the highest recorded heart rate per athlete."""
+    st.subheader("❤️‍🔥 Heart Rate Highs")
+    st.caption("The highest recorded heart rate for each athlete — how deep in the red zone?")
+
+    if df.empty or "max_heartrate" not in df.columns:
+        st.info("No heart rate data available.")
+        return
+
+    hr_df = df.dropna(subset=["max_heartrate"])
+    if hr_df.empty:
+        st.info("No heart rate data available.")
+        return
+
+    bests = (
+        hr_df.groupby("athlete_name")["max_heartrate"]
+        .max()
+        .reset_index()
+        .sort_values("max_heartrate", ascending=True)
+    )
+
+    # Colour-code by heart rate zone (rough guide)
+    def _hr_color(bpm: float) -> str:
+        if bpm >= 180:
+            return "#FF0000"   # red zone
+        if bpm >= 160:
+            return "#FF6600"   # threshold
+        if bpm >= 140:
+            return "#FFB300"   # aerobic
+        return "#00CC96"       # easy
+
+    colors = [_hr_color(float(v)) for v in bests["max_heartrate"]]
+
+    fig = go.Figure(
+        go.Bar(
+            x=bests["max_heartrate"],
+            y=bests["athlete_name"],
+            orientation="h",
+            marker_color=colors,
+            text=[f"{int(v)} bpm" for v in bests["max_heartrate"]],
+            textposition="outside",
+            hovertemplate="<b>%{y}</b><br>Max HR: %{x:.0f} bpm<extra></extra>",
+        )
+    )
+
+    # Reference zone lines
+    for bpm, label, color in [
+        (140, "Aerobic zone", "#FFB300"),
+        (160, "Threshold zone", "#FF6600"),
+        (180, "Red zone", "#FF0000"),
+    ]:
+        fig.add_vline(
+            x=bpm,
+            line_dash="dot",
+            line_color=color,
+            line_width=1.5,
+            opacity=0.6,
+            annotation_text=label,
+            annotation_position="top",
+            annotation_font_size=10,
+            annotation_font_color=color,
+        )
+
+    fig.update_layout(
+        xaxis_title="Heart rate (bpm)",
+        yaxis_title="",
+        margin=dict(t=20, b=40, l=20, r=100),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VIZ 7 — Suffer Score Leaderboard
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _chart_suffer_score(df: pd.DataFrame) -> None:
+    """Power-rankings-style suffer score leaderboard with total and per-activity context."""
+    st.subheader("💀 Suffer Score Leaderboard")
+    st.caption(
+        "Total suffer score accumulated since the start of the challenge. "
+        "Higher = more suffering = more bragging rights."
+    )
+
+    if df.empty or "suffer_score" not in df.columns:
+        st.info("No suffer score data available.")
+        return
+
+    ss_df = df.dropna(subset=["suffer_score"])
+    if ss_df.empty:
+        st.info("No suffer score data available.")
+        return
+
+    totals = (
+        ss_df.groupby("athlete_name")["suffer_score"]
+        .sum()
+        .reset_index()
+        .sort_values("suffer_score", ascending=False)
+        .reset_index(drop=True)
+    )
+
+    # Podium emojis
+    medals = ["🥇", "🥈", "🥉"]
+
+    # Summary metrics row
+    cols = st.columns(len(totals))
+    for i, (col, (_, row)) in enumerate(zip(cols, totals.iterrows())):
+        medal = medals[i] if i < len(medals) else f"#{i + 1}"
+        col.metric(
+            label=f"{medal} {row['athlete_name']}",
+            value=f"{row['suffer_score']:,.0f}",
+        )
+
+    # Bar chart
+    colors = [
+        _ATHLETE_COLORS[i % len(_ATHLETE_COLORS)]
+        for i in range(len(totals))
+    ]
+
+    fig = go.Figure(
+        go.Bar(
+            x=totals["athlete_name"].tolist(),
+            y=totals["suffer_score"].tolist(),
+            marker_color=colors,
+            text=[f"{v:,.0f}" for v in totals["suffer_score"]],
+            textposition="outside",
+            hovertemplate="<b>%{x}</b><br>Suffer score: %{y:,.0f}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        yaxis_title="Total suffer score",
+        xaxis_title="",
+        margin=dict(t=20, b=40, l=20, r=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # PUBLIC ENTRY POINT
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -257,10 +550,18 @@ def render(
     use_miles: bool = True,
     use_hours: bool = False,
 ) -> None:
-    """Render all three Misc visualizations."""
+    """Render all Misc visualizations."""
     _chart_activity_dna(df, use_miles, use_hours)
     st.divider()
     _chart_personal_bests(df, use_miles, use_hours)
     st.divider()
     _chart_consistency_heatmap(df, start, end)
+    st.divider()
+    _chart_speed_vs_animals(df)
+    st.divider()
+    _chart_moving_time(df)
+    st.divider()
+    _chart_heart_rate_highs(df)
+    st.divider()
+    _chart_suffer_score(df)
 

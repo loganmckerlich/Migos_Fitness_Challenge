@@ -24,6 +24,7 @@ import streamlit as st
 import config
 import strava
 from viz import activity_breakdown, athlete_mile_progress, foot_miles, group_progress, misc, route_map
+from viz import calorie_viz, elevation_viz
 from viz.shared import to_display as _to_display, unit_label as _unit_label
 
 
@@ -214,11 +215,13 @@ def main() -> None:
     athletes_frozen = tuple((a["id"], a["name"]) for a in config.ATHLETES)
     df = _load_data(athletes_frozen, start_date, end_date)
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📈 Overall Progress",
         "📊 Athlete Progress",
         "🦶 Foot Miles",
         "🗺️ Euro Map",
+        "🔥 Calories",
+        "🏔️ Elevation",
         "🎲 Misc",
         "ℹ️ Info",
     ])
@@ -239,9 +242,15 @@ def main() -> None:
         route_map.render(df, start_date, end_date, city_route, use_miles)
 
     with tab5:
-        misc.render(df, start_date, end_date, use_miles, use_hours)
+        calorie_viz.render(df, start_date, end_date)
 
     with tab6:
+        elevation_viz.render(df, start_date, end_date)
+
+    with tab7:
+        misc.render(df, start_date, end_date, use_miles, use_hours)
+
+    with tab8:
         _tab_info()
 
     st.divider()
