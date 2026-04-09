@@ -21,14 +21,14 @@ from viz.shared import build_cumulative
 # ── Landmark definitions ──────────────────────────────────────────────────────
 # (name, height_m, bar_color, emoji)
 _LANDMARKS: list[tuple[str, float, str, str]] = [
-    ("Tallest Tree\n(Hyperion)",  116.0,    "#228B22", "🌲"),
-    ("Space Needle",             184.0,    "#4682B4", "🗼"),
-    ("Eiffel Tower",             330.0,    "#C0A060", "🗼"),
-    ("Empire State Bldg",        443.0,    "#708090", "🏢"),
-    ("Burj Khalifa",             828.0,    "#C8A84B", "🏙️"),
-    ("Mount Si",               1_270.0,   "#6B8E23", "⛰️"),
-    ("Mount Rainier",          4_392.0,   "#8B7D7B", "🏔️"),
-    ("Mount Everest",          8_848.9,   "#A9A9A9", "🏔️"),
+    ("Tallest Tree (Hyperion)", 116.0,    "#228B22", "🌲"),
+    ("Space Needle",            184.0,    "#4682B4", "🗼"),
+    ("Eiffel Tower",            330.0,    "#C0A060", "🗼"),
+    ("Empire State Bldg",       443.0,    "#708090", "🏢"),
+    ("Burj Khalifa",            828.0,    "#C8A84B", "🏙️"),
+    ("Mount Si",              1_270.0,   "#6B8E23", "⛰️"),
+    ("Mount Rainier",         4_392.0,   "#8B7D7B", "🏔️"),
+    ("Mount Everest",         8_848.9,   "#A9A9A9", "🏔️"),
 ]
 
 # Athlete colour palette
@@ -150,7 +150,7 @@ def render(df: pd.DataFrame, start: date, end: date) -> None:
         for athlete in athletes:
             final_elev = float(cumulative[athlete].iloc[-1]) if not cumulative.empty else 0.0
             crossed = [
-                f"{emoji} {name.replace(chr(10), ' ')} ({height:,.0f} m)"
+                f"{emoji} {name} ({height:,.0f} m)"
                 for name, height, _, emoji in visible_landmarks
                 if final_elev >= height
             ]

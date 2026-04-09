@@ -264,6 +264,18 @@ _SPEED_REFS: list[tuple[str, float, str, str]] = [
 ]
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# VIZ 6 — Heart Rate constants (shared by _hr_color and reference lines)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# (bpm_threshold, zone_label, color)  — listed from lowest to highest
+_HR_ZONES: list[tuple[int, str, str]] = [
+    (140, "Aerobic zone",    "#FFB300"),
+    (160, "Threshold zone",  "#FF6600"),
+    (180, "Red zone",        "#FF0000"),
+]
+
+
 def _chart_speed_vs_animals(df: pd.DataFrame) -> None:
     """Horizontal grouped bar comparing athlete top speeds to reference speeds."""
     st.subheader("🐆 Speed vs Animals")
@@ -424,15 +436,12 @@ def _chart_heart_rate_highs(df: pd.DataFrame) -> None:
         .sort_values("max_heartrate", ascending=True)
     )
 
-    # Colour-code by heart rate zone (rough guide)
+    # Colour-code by heart rate zone using shared _HR_ZONES constant
     def _hr_color(bpm: float) -> str:
-        if bpm >= 180:
-            return "#FF0000"   # red zone
-        if bpm >= 160:
-            return "#FF6600"   # threshold
-        if bpm >= 140:
-            return "#FFB300"   # aerobic
-        return "#00CC96"       # easy
+        for threshold, _, color in reversed(_HR_ZONES):
+            if bpm >= threshold:
+                return color
+        return "#00CC96"  # easy / below aerobic threshold
 
     colors = [_hr_color(float(v)) for v in bests["max_heartrate"]]
 
@@ -448,12 +457,8 @@ def _chart_heart_rate_highs(df: pd.DataFrame) -> None:
         )
     )
 
-    # Reference zone lines
-    for bpm, label, color in [
-        (140, "Aerobic zone", "#FFB300"),
-        (160, "Threshold zone", "#FF6600"),
-        (180, "Red zone", "#FF0000"),
-    ]:
+    # Reference zone lines (drawn from shared _HR_ZONES constant)
+    for bpm, label, color in _HR_ZONES:
         fig.add_vline(
             x=bpm,
             line_dash="dot",
