@@ -41,11 +41,10 @@ def render(
     factor = config.KM_TO_MI if use_miles else 1.0
 
     # Filter to foot activities only
-    foot_df = (
-        df[df["activity_type"].isin(["Run", "Walk"])].copy()
-        if "activity_type" in df.columns
-        else df.copy()
-    )
+    if "activity_type" not in df.columns:
+        st.info("Activity type data is required for Foot Miles (Run + Walk only).")
+        return
+    foot_df = df[df["activity_type"].isin(["Run", "Walk"])].copy()
 
     if foot_df.empty:
         st.info("No walking or running data available for the selected date range.")
@@ -152,4 +151,3 @@ def render(
             f"Dashed line = 1 {unit}/day pace target "
             f"({target_disp:.1f} {unit} after {elapsed_days} days elapsed)."
         )
-

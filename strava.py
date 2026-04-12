@@ -38,8 +38,8 @@ AUTH_URL        = "https://www.strava.com/oauth/token"
 _RNG = random.Random(42)
 
 
-_DUMMY_ACTIVITY_TYPES = ["Run", "Walk", "Ride"]
-_DUMMY_ACTIVITY_WEIGHTS = [0.45, 0.20, 0.35]
+_DUMMY_ACTIVITY_TYPES = ["Run", "Walk", "Ride", "Swim"]
+_DUMMY_ACTIVITY_WEIGHTS = [0.40, 0.20, 0.30, 0.10]
 
 # Approximate pace ranges (minutes per km) for each activity type used to
 # generate realistic dummy moving-time values.
@@ -47,6 +47,7 @@ _DUMMY_PACE_MIN_PER_KM: dict[str, tuple[float, float]] = {
     "Run":  (5.0, 8.0),    # 5–8 min/km
     "Walk": (10.0, 15.0),  # 10–15 min/km
     "Ride": (2.0, 4.0),    # 2–4 min/km
+    "Swim": (18.0, 30.0),  # 18–30 min/km
 }
 
 # Approximate calories burned per km by activity type
@@ -54,6 +55,7 @@ _DUMMY_CALORIES_PER_KM: dict[str, tuple[float, float]] = {
     "Run":  (65.0, 80.0),   # 65–80 cal/km
     "Walk": (50.0, 65.0),   # 50–65 cal/km
     "Ride": (30.0, 50.0),   # 30–50 cal/km
+    "Swim": (45.0, 70.0),   # 45–70 cal/km
 }
 
 # Elevation gain per km (metres) by activity type
@@ -61,6 +63,7 @@ _DUMMY_ELEVATION_PER_KM: dict[str, tuple[float, float]] = {
     "Run":  (10.0, 40.0),   # 10–40 m/km
     "Walk": (15.0, 60.0),   # 15–60 m/km (often hillier hikes)
     "Ride": (5.0, 25.0),    # 5–25 m/km
+    "Swim": (0.0, 0.0),     # 0 m/km
 }
 
 # Max speed (km/h) by activity type
@@ -68,6 +71,7 @@ _DUMMY_MAX_SPEED_KPH: dict[str, tuple[float, float]] = {
     "Run":  (12.0, 22.0),   # 12–22 km/h
     "Walk": (5.0,  8.0),    # 5–8 km/h
     "Ride": (30.0, 60.0),   # 30–60 km/h
+    "Swim": (2.0,  6.0),    # 2–6 km/h
 }
 
 # Max heart rate (bpm)
@@ -194,7 +198,7 @@ def get_athlete_daily_distances(
     """
     Return a DataFrame with columns: date, athlete_id, athlete_name, km, activity_type.
 
-    activity_type is one of "Run", "Walk", or "Ride".
+    activity_type is one of "Run", "Walk", "Ride", or "Swim".
 
     When USE_DUMMY_DATA is True, returns synthetic data.
     When USE_DUMMY_DATA is False, fetches real data from the Strava API using
@@ -234,6 +238,8 @@ def get_athlete_daily_distances(
         "VirtualRide":       "Ride",
         "MountainBikeRide":  "Ride",
         "GravelRide":        "Ride",
+        "Swim":              "Swim",
+        "OpenWaterSwim":     "Swim",
 
     }
 
