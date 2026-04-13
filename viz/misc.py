@@ -2,7 +2,7 @@
 viz/misc.py — Bonus visualizations for the Misc tab.
 
 1. 🏆 Personal Best Days  — horizontal bar of each athlete's single best day
-2. 🧬 Activity DNA        — per-athlete stacked bar: run vs walk vs ride miles
+2. 🧬 Activity DNA        — per-athlete stacked bar by activity type miles
 3. 📅 Training Consistency — weekly active-day heatmap per athlete
 4. 🐆 Speed vs Animals    — compare athlete top speeds to animals & vehicles
 5. 🎬 Moving Time         — total hours expressed as movies, flights, work days
@@ -25,7 +25,8 @@ from viz.shared import unit_label
 _RUN_COLOR  = "#EF553B"
 _WALK_COLOR = "#00CC96"
 _RIDE_COLOR = "#636EFA"
-_COLOR_MAP  = {"Run": _RUN_COLOR, "Walk": _WALK_COLOR, "Ride": _RIDE_COLOR}
+_SWIM_COLOR = "#19D3F3"
+_COLOR_MAP  = {"Run": _RUN_COLOR, "Walk": _WALK_COLOR, "Ride": _RIDE_COLOR, "Swim": _SWIM_COLOR}
 
 _ATHLETE_COLORS = [
     "#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A",
@@ -473,4 +474,3 @@ def render(
     _chart_moving_time(df)
     st.divider()
     _chart_heart_rate_highs(df)
-

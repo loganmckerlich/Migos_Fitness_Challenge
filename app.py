@@ -120,7 +120,7 @@ def _tab_info() -> None:
     st.markdown(
         """
         Welcome to the **Migos Fitness Challenge** — a year-long group fitness
-        challenge where everyone tracks their running, walking, and cycling
+        challenge where everyone tracks their running, walking, cycling, and swimming
         distances together towards a shared goal.
 
         ---
@@ -162,9 +162,13 @@ def _tab_info() -> None:
         | 🏃 **Run** | Run, Trail Run, Virtual Run |
         | 🚶 **Walk** | Walk, Hike |
         | 🚴 **Ride** | Ride, Virtual Ride, Mountain Bike Ride, Gravel Ride |
+        | 🏊 **Swim** | Swim, Open Water Swim |
 
         Every kilometre (or mile) logged in any of these activity types is added
         to both the group total and your personal total.
+
+        The **🦶 Foot Miles** tab only counts **Run + Walk** activities (not rides
+        or swims) for foot-specific pace tracking.
 
         ---
 

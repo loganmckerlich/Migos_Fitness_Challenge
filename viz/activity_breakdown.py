@@ -45,7 +45,7 @@ def render(df: pd.DataFrame, use_miles: bool = True, use_hours: bool = False) ->
         st.info("No data to display.")
         return
 
-    color_map = {"Run": "#EF553B", "Walk": "#00CC96", "Ride": "#636EFA"}
+    color_map = {"Run": "#EF553B", "Walk": "#00CC96", "Ride": "#636EFA", "Swim": "#19D3F3"}
     colors = [color_map.get(t, "#AB63FA") for t in totals["activity_type"]]
 
     fig = go.Figure(
@@ -64,4 +64,3 @@ def render(df: pd.DataFrame, use_miles: bool = True, use_hours: bool = False) ->
         margin=dict(t=60, b=20, l=20, r=20),
     )
     st.plotly_chart(fig, use_container_width=True)
-
